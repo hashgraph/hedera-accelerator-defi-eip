@@ -59,14 +59,6 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
         bool exist;
     }
 
-    struct ClaimCallResponse {
-        uint256 alreadyClaimedCount;
-        uint256 claimedRewardsCount;
-        uint256 unclaimedRewardsCount;
-        uint256 totalRewardsCount;
-        address[] claimedRewardsTokens;
-    }
-
     /**
      * @notice CreatedToken event.
      * @dev Emitted after contract initialization, when share token was deployed.
@@ -489,7 +481,6 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
             _rewards[i] = getUserReward(_user, rewardTokens[i]);
         }
         return _rewards;
-
     }
 }
 
