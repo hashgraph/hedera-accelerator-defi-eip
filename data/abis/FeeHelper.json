@@ -3,8 +3,8 @@
   "contractName": "FeeHelper",
   "sourceName": "contracts/common/hedera/FeeHelper.sol",
   "abi": [],
-  "bytecode": "0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea26469706673582212201ed7e2f260b4f7c05ee345443878bf7d353b21d9602baf4da23fab826463662864736f6c63430008180033",
-  "deployedBytecode": "0x6080604052600080fdfea26469706673582212201ed7e2f260b4f7c05ee345443878bf7d353b21d9602baf4da23fab826463662864736f6c63430008180033",
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
   "linkReferences": {},
   "deployedLinkReferences": {}
 }
