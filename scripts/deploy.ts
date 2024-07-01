@@ -192,21 +192,27 @@ async function deployVault(contracts: Record<string, any>): Promise<Record<strin
 }
 
 // deploy HTS Token Factory
-async function deployHTSTokenFactory(contracts: Record<string, any>): Promise<Record<string, any>>  {
-  const [owner] = await ethers.getSigners();
+async function deployHTSTokenFactory(contracts: Record<string, any>): Promise<Record<string, any>> {
+  const [deployer] = await ethers.getSigners();
 
-  const htsTokenFactoryDeployer = await ethers.getContractFactory("HTSTokenFactory");
-
-  const htsTokenFactory = await htsTokenFactoryDeployer.connect(owner).deploy({ gasLimit: 4800000 });
-  await htsTokenFactory.waitForDeployment();
+  const htsToken = await ethers.deployContract("HTSToken", ["HTSTokenTest", "HTT", 8], {
+    signer: deployer,
+    value: ethers.parseEther("13"),
+    gasLimit: 4800000,
+  });
+  const htsTokenFactory = await ethers.deployContract("HTSTokenFactory", [], { gasLimit: 4800000 });
 
   return {
     ...contracts,
+    implementations: {
+      ...contracts.implementations,
+      HTSToken: await htsToken.getAddress(),
+    },
     factories: {
       ...contracts.factories,
-      HTSTokenFactory: await htsTokenFactory.getAddress()
-    }
-  }
+      HTSTokenFactory: await htsTokenFactory.getAddress(),
+    },
+  };
 }
 
 // creates a deployment file into data/deployments (eg: data/deployments/mainnet.json)
