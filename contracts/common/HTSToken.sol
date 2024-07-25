@@ -62,15 +62,17 @@ contract HTSToken is ExpiryHelper, KeyHelper {
     }
 
     function mint(int64 amount) public returns (int responseCode, int64 newTotalSupply, int64[] memory serialNumbers) {
+        hts.grantTokenKyc(tokenAddress, msg.sender);
+
         (responseCode, newTotalSupply, serialNumbers) = hts.mintToken(tokenAddress, amount, new bytes[](0));
 
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert("Error minting token");
         }
 
-        emit MintedToken(tokenAddress, amount, newTotalSupply);
-
         hts.transferToken(tokenAddress, address(this), msg.sender, amount);
+
+        emit MintedToken(tokenAddress, amount, newTotalSupply);
     }
 
     function associate() public returns (uint256 responseCode) {
