@@ -22,7 +22,6 @@ contract HTSToken is ExpiryHelper, KeyHelper {
         address treasury = address(this);
         string memory memo = "";
         int64 initialTotalSupply = 0;
-        int64 maxSupply = 10000; // TODO: no max supply
         bool freezeDefaultStatus = false;
 
         IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](5);
@@ -39,8 +38,8 @@ contract HTSToken is ExpiryHelper, KeyHelper {
             tokenSymbol,
             treasury,
             memo,
-            true,
-            maxSupply,
+            false,
+            0,
             freezeDefaultStatus,
             keys,
             expiry
