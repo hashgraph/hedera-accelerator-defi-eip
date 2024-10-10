@@ -29,30 +29,30 @@ async function main() {
     operatorPrKey
   );
 
-  // const stakingToken = await createFungibleToken(
-  //   "ERC4626 on Hedera",
-  //   "HERC4626",
-  //   process.env.ACCOUNT_ID,
-  //   operatorPrKey.publicKey,
-  //   client,
-  //   operatorPrKey
-  // );
+  const stakingToken = await createFungibleToken(
+    "ERC4626 on Hedera",
+    "HERC4626",
+    process.env.ACCOUNT_ID,
+    operatorPrKey.publicKey,
+    client,
+    operatorPrKey
+  );
 
-  // const rewardToken = await createFungibleToken(
-  //   "Reward Token 1",
-  //   "RT1",
-  //   process.env.ACCOUNT_ID,
-  //   operatorPrKey.publicKey,
-  //   client,
-  //   operatorPrKey
-  // );
+  const rewardToken = await createFungibleToken(
+    "Reward Token 1",
+    "RT2",
+    process.env.ACCOUNT_ID,
+    operatorPrKey.publicKey,
+    client,
+    operatorPrKey
+  );
 
-  // const stakingTokenAddress = "0x" + stakingToken!.toSolidityAddress();
-  // const rewardTokenAddress = "0x" + rewardToken!.toSolidityAddress();
+  const stakingTokenAddress = "0x" + stakingToken!.toSolidityAddress();
+  const rewardTokenAddress = "0x" + rewardToken!.toSolidityAddress();
 
-  // console.log("Staking token addrress", stakingTokenAddress);
-  // console.log("Reward token addrress", rewardTokenAddress);
-  
+  console.log("Staking token addrress", stakingTokenAddress);
+  console.log("Reward token addrress", rewardTokenAddress);
+
   // Zero fee
   const feeConfig = {
     receiver: ZeroAddress,
@@ -97,20 +97,35 @@ async function main() {
 
   // console.log("Vault Factory deployed with address: ", await vaultFactory.getAddress());
 
-  const Locker = await ethers.getContractFactory("Locker");
-  const locker = await Locker.deploy(
-    "0x00000000000000000000000000000000004719e7",
-    [
-      "0x00000000000000000000000000000000004719e6",
-      "0x0000000000000000000000000000000000476034",
-      "0x0000000000000000000000000000000000476035"
-    ],
-    { from: deployer.address, gasLimit: 15000000, value: ethers.parseUnits("12", 18) }
-  );
-  console.log("Hash ", locker.deploymentTransaction()?.hash);
-  await locker.waitForDeployment();
+  // const Locker = await ethers.getContractFactory("Locker");
+  // const locker = await Locker.deploy(
+  //   "0x00000000000000000000000000000000004719e7",
+  //   [
+  //     "0x00000000000000000000000000000000004719e6",
+  //     "0x0000000000000000000000000000000000476034",
+  //     "0x0000000000000000000000000000000000476035"
+  //   ],
+  //   { from: deployer.address, gasLimit: 15000000, value: ethers.parseUnits("12", 18) }
+  // );
+  // console.log("Hash ", locker.deploymentTransaction()?.hash);
+  // await locker.waitForDeployment();
 
-  console.log("Locker deployed with address: ", await locker.getAddress());
+  // console.log("Locker deployed with address: ", await locker.getAddress());
+
+  const AsyncVault = await ethers.getContractFactory("AsyncVault");
+  const asyncVault = await AsyncVault.deploy(
+    stakingTokenAddress,
+    "TST",
+    "TST",
+    feeConfig,
+    deployer.address,
+    deployer.address,
+    { from: deployer.address, gasLimit: 3000000, value: ethers.parseUnits("20", 18) }
+  );
+  console.log("Hash ", asyncVault.deploymentTransaction()?.hash);
+  await asyncVault.waitForDeployment();
+
+  console.log("AsyncVault deployed with address: ", await asyncVault.getAddress());
 }
 
 main().catch((error) => {

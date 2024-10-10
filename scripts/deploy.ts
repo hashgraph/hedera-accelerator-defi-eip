@@ -197,6 +197,76 @@ async function deployVault(contracts: Record<string, any>): Promise<Record<strin
   };
 }
 
+// Deploy Async Vault contracts
+async function deployAsyncVault(contracts: Record<string, any>): Promise<Record<string, any>> {
+  const [deployer] = await ethers.getSigners();
+  const network = await ethers.provider.getNetwork();
+
+  console.log("Deploying Async Vault with account:", deployer.address, "at:", network.name);
+
+  let client = Client.forTestnet();
+
+  const operatorPrKey = PrivateKey.fromStringECDSA(process.env.PRIVATE_KEY || '');
+  const operatorAccountId = AccountId.fromString(process.env.ACCOUNT_ID || '');
+
+  client.setOperator(
+    operatorAccountId,
+    operatorPrKey
+  );
+
+  const stakingToken = await createFungibleToken(
+    "ERC7540 on Hedera",
+    "HERC7540",
+    process.env.ACCOUNT_ID,
+    operatorPrKey.publicKey,
+    client,
+    operatorPrKey
+  );
+
+  const stakingTokenAddress = "0x" + stakingToken!.toSolidityAddress();
+
+  const rewardToken = await createFungibleToken(
+    "Reward Token 1",
+    "RT1",
+    process.env.ACCOUNT_ID,
+    operatorPrKey.publicKey,
+    client,
+    operatorPrKey
+  );
+
+  const feeConfig = {
+    receiver: "0x091b4a7ea614a3bd536f9b62ad5641829a1b174f",
+    token: "0x" + rewardToken!.toSolidityAddress(),
+    minAmount: 0,
+    feePercentage: 1000,
+  };
+
+  const AsyncVault = await ethers.getContractFactory("AsyncVault");
+  const asyncVault = await AsyncVault.deploy(
+    stakingTokenAddress,
+    "TST",
+    "TST",
+    feeConfig,
+    deployer.address,
+    deployer.address,
+    { from: deployer.address, gasLimit: 3000000, value: ethers.parseUnits("20", 18) }
+  );
+  console.log("Hash ", asyncVault.deploymentTransaction()?.hash);
+  await asyncVault.waitForDeployment();
+
+  console.log("Vault deployed with address: ", await asyncVault.getAddress());
+
+  return {
+    ...contracts,
+    asyncVault: {
+      Vault: asyncVault.target,
+      StakingToken: stakingTokenAddress,
+      Share: await asyncVault.share(),
+      RewardToken: "0x" + rewardToken!.toSolidityAddress()
+    }
+  };
+}
+
 // deploy HTS Token Factory
 async function deployHTSTokenFactory(contracts: Record<string, any>): Promise<Record<string, any>> {
   const [deployer] = await ethers.getSigners();
