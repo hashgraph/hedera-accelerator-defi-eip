@@ -38,4 +38,10 @@ jobs:
 
       - name: Run HTS Tests
         run: yarn hardhat test test/erc4626/**.ts --network testnet
+
+      - name: Run Tests DLT
+        run: yarn hardhat test test/erc6960/**.ts --network hardhat
+
+      - name: Run HTS Tests DLT with HTS
+        run: yarn hardhat test test/erc6960-hts/**.ts --network testnet
         
