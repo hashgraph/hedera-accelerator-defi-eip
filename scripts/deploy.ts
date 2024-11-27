@@ -3,6 +3,13 @@ import { writeFile } from 'fs/promises';
 import { createFungibleToken } from "../scripts/utils";
 import { Client, AccountId, PrivateKey } from "@hashgraph/sdk";
 
+import {
+  usdcAddress,
+  uniswapRouterAddress,
+  pythOracleAddress,
+  pythUtilsAddress
+} from "../constants";
+
 // Initial function for logs and configs
 async function init(): Promise<Record<string, any>> {
   console.log(" - Deploying contracts...");
@@ -274,14 +281,14 @@ async function deployTokenBalancer(contracts: Record<string, any>): Promise<Reco
   // Set Pyth Utils lib address
   const TokenBalancer = await ethers.getContractFactory("TokenBalancer", {
     libraries: {
-      PythUtils: "0x503187175Da79a0E62605D6CEC4e845E9ACC7C94"
+      PythUtils: pythUtilsAddress
     }
   });
 
   const tokenBalancer = await TokenBalancer.deploy(
-    "0x330C40b17607572cf113973b8748fD1aEd742943",
-    "0xACE99ADFd95015dDB33ef19DCE44fee613DB82C2",
-    "0x0000000000000000000000000000000000068cda"
+    pythOracleAddress,
+    uniswapRouterAddress,
+    usdcAddress
   );
   await tokenBalancer.waitForDeployment();
 
@@ -300,9 +307,9 @@ async function deployAutoCompounder(contracts: Record<string, any>): Promise<Rec
   const AutoCompounder = await ethers.getContractFactory("AutoCompounder");
 
   const autoCompounder = await AutoCompounder.deploy(
-    "0xACE99ADFd95015dDB33ef19DCE44fee613DB82C2",
+    uniswapRouterAddress,
     "0x0000000000000000000000000000000000423255",
-    "0x0000000000000000000000000000000000068cda",
+    usdcAddress,
     "AToken",
     "AToken"
   );
@@ -312,6 +319,22 @@ async function deployAutoCompounder(contracts: Record<string, any>): Promise<Rec
     ...contracts,
     autoCompounder: {
       AutoCompounder: autoCompounder.target
+    }
+  };
+}
+
+// Deploy AutoCompounder
+async function deployAutoCompounderFactory(contracts: Record<string, any>): Promise<Record<string, any>> {
+  const [deployer] = await ethers.getSigners();
+
+  const AutoCompounderFactory = await ethers.getContractFactory("AutoCompounderFactory");
+  const autoCompounderFactory = await AutoCompounderFactory.deploy();
+  await autoCompounderFactory.waitForDeployment();
+
+  return {
+    ...contracts,
+    autoCompounder: {
+      AutoCompounderFactory: autoCompounderFactory.target
     }
   };
 }
@@ -365,6 +388,7 @@ init()
   .then(deployVault)
   .then(deployTokenBalancer)
   .then(deployAutoCompounder)
+  .then(deployAutoCompounderFactory)
   .then(deployHTSTokenFactory)
   .then(exportDeploymentVersion)
   .then(finish)

@@ -4,12 +4,15 @@ import { createFungibleToken, TokenTransfer } from "../scripts/utils";
 import { Client, AccountId, PrivateKey } from "@hashgraph/sdk";
 import { BytesLike, ZeroAddress } from "ethers";
 
+import {
+  usdcAddress,
+  uniswapRouterAddress,
+  pythOracleAddress,
+  pythUtilsAddress
+} from "../constants";
+
 dotenv.config();
 
-const usdcAddress = "0x0000000000000000000000000000000000068cda";
-
-const mockPyth = "0x330C40b17607572cf113973b8748fD1aEd742943";
-const deployedSaucerSwap = "0xACE99ADFd95015dDB33ef19DCE44fee613DB82C2";
 const rw1Token = "0x000000000000000000000000000000000044b66c";
 const rw2Token = "0x000000000000000000000000000000000044b66e";
 const rw1Id = ethers.keccak256(ethers.toUtf8Bytes("RT1"));
@@ -68,7 +71,7 @@ async function main() {
 
   // const HederaVault = await ethers.getContractFactory("HederaVault");
   // const hederaVault = await HederaVault.deploy(
-  //   "0x00000000000000000000000000000000004e97dd",
+  //   "0x00000000000000000000000000000000004eb987",
   //   "TST",
   //   "TST",
   //   feeConfig,
@@ -137,8 +140,8 @@ async function main() {
   //   }
   // });
   // const tokenBalancer = await TokenBalancer.deploy(
-  //   mockPyth,
-  //   deployedSaucerSwap,
+  //   pythOracleAddress,
+  //   uniswapRouterAddress,
   //   usdcAddress
   // );
   // console.log("Hash ", tokenBalancer.deploymentTransaction()?.hash);
@@ -148,7 +151,7 @@ async function main() {
 
   const AutoCompounder = await ethers.getContractFactory("AutoCompounder");
   const autoCompounder = await AutoCompounder.deploy(
-    deployedSaucerSwap,
+    uniswapRouterAddress,
     "0x1BFbfB870f0733200741dF3336f7b2abd2740207",
     usdcAddress,
     "aToken",
@@ -159,6 +162,15 @@ async function main() {
   await autoCompounder.waitForDeployment();
 
   console.log("AutoCompounder deployed with address: ", await autoCompounder.getAddress());
+
+  const AutoCompounderFactory = await ethers.getContractFactory("AutoCompounderFactory");
+  const autoCompounderFactory = await AutoCompounderFactory.deploy(
+    { from: deployer.address, gasLimit: 4000000 }
+  );
+  console.log("Hash ", autoCompounderFactory.deploymentTransaction()?.hash);
+  await autoCompounderFactory.waitForDeployment();
+
+  console.log("AutoCompounder Factory deployed with address: ", await autoCompounderFactory.getAddress());
 }
 
 main().catch((error) => {

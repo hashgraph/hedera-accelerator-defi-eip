@@ -131,11 +131,14 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
 
         balances[underlying] += assets;
 
+        SafeHTS.safeTransferToken(underlying, msg.sender, address(this), int64(uint64(assets)));
+
+        SafeHTS.safeApprove(underlying, address(vault), assets);
         vault.deposit(assets, address(this));
 
         // Mint and transfer aToken
-        SafeHTS.safeMintToken(aToken, uint64(assets), new bytes[](0));
-        SafeHTS.safeTransferToken(aToken, address(this), msg.sender, int64(uint64(assets)));
+        SafeHTS.safeMintToken(aToken, uint64(amountToMint), new bytes[](0));
+        SafeHTS.safeTransferToken(aToken, address(this), msg.sender, int64(uint64(amountToMint)));
 
         emit Deposit(msg.sender, assets, amountToMint);
     }
@@ -153,8 +156,11 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
         balances[underlying] += underlyingAmount;
 
         // Burn aToken
-        _burn(msg.sender, aTokenAmount);
+        SafeHTS.safeTransferToken(aToken, msg.sender, address(this), int64(uint64(aTokenAmount)));
+        SafeHTS.safeBurnToken(aToken, uint64(aTokenAmount), new int64[](0));
 
+        // Approve share to burn
+        SafeHTS.safeApprove(vault.share(), address(vault), underlyingAmount);
         vault.withdraw(underlyingAmount, address(this), address(this));
 
         emit Withdraw(msg.sender, aTokenAmount, underlyingAmount);
@@ -178,8 +184,7 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
                 block.timestamp
             );
 
-            balances[underlying] += amounts[1];
-
+            SafeHTS.safeApprove(underlying, address(vault), amounts[1]);
             vault.deposit(amounts[1], address(this));
             emit Claim(amounts[1]);
         } else {

@@ -38,7 +38,7 @@ interface ITokenBalancer {
         address token;
         bytes32 priceId;
         uint256 targetPercentage;
-        bool isAutoCompaunder;
+        bool isAutoCompounder;
     }
 
     /**
@@ -47,7 +47,7 @@ interface ITokenBalancer {
      * @param aToken The A/V token address.
      * @param priceId The price ID in terms of Pyth oracle.
      * @param percentage The target allocation percentage.
-     * @param isAutoCompaunder The bool flag true if the token is AutoCompaunder.
+     * @param isAutoCompounder The bool flag true if the token is AutoCompaunder.
      */
-    function addTrackingToken(address aToken, bytes32 priceId, uint256 percentage, bool isAutoCompaunder) external;
+    function addTrackingToken(address aToken, bytes32 priceId, uint256 percentage, bool isAutoCompounder) external;
 }

@@ -95,7 +95,7 @@ contract TokenBalancer is ITokenBalancer {
 
         require(aTokenInfo.aToken != address(0), "TokenBalancer: The token doesn't exist");
 
-        if (aTokenInfo.isAutoCompaunder) {
+        if (aTokenInfo.isAutoCompounder) {
             uint256 aTokenBalance = IERC20(_aToken).balanceOf(address(this));
             uint256 exchangeRate = IAutoCompounder(_aToken).exchangeRate();
             uint256 usdPrice = _getPrice(aTokenInfo.token, aTokenInfo.priceId);
@@ -145,7 +145,7 @@ contract TokenBalancer is ITokenBalancer {
             TokenInfo storage aTokenInfo = tokenInfo[amounts[i].token];
 
             // withdraw calculated amounts of the underlying tokens and burn A/V tokens equivalent
-            if (aTokenInfo.isAutoCompaunder) {
+            if (aTokenInfo.isAutoCompounder) {
                 IAutoCompounder(amounts[i].token).withdraw(amounts[i].amountToTrade);
             } else {
                 IERC4626(amounts[i].token).withdraw(amounts[i].amountToTrade, address(this), address(this));
@@ -228,9 +228,9 @@ contract TokenBalancer is ITokenBalancer {
      * @param aToken The A/V token address.
      * @param priceId The underlying token oracle price ID.
      * @param percentage The allocation percentage.
-     * @param isAutoCompaunder The bool flag true if the token is autocompaunder.
+     * @param isAutoCompounder The bool flag true if the token is AutoCompounder.
      */
-    function addTrackingToken(address aToken, bytes32 priceId, uint256 percentage, bool isAutoCompaunder) public {
+    function addTrackingToken(address aToken, bytes32 priceId, uint256 percentage, bool isAutoCompounder) public {
         require(aToken != address(0), "TokenBalancer: Invalid token address");
         require(priceId.length != 0, "TokenBalancer: Invalid price ID");
         require(percentage < 10000 && percentage > 0, "TokenBalancer: Invalid allocation percentage");
@@ -239,7 +239,7 @@ contract TokenBalancer is ITokenBalancer {
 
         address underlying = IERC4626(aToken).asset();
 
-        tokenInfo[aToken] = TokenInfo(aToken, underlying, priceId, percentage, isAutoCompaunder);
+        tokenInfo[aToken] = TokenInfo(aToken, underlying, priceId, percentage, isAutoCompounder);
 
         tokens.push(aToken);
 

@@ -11,13 +11,13 @@ const revertCasesVaultAddress = "0xb3C24B140BA2a69099276e55dE1885e93517C6C6";
 const revertCasesVaultId = "0.0.3757631";
 
 const newStakingTokenId = "0.0.4338257";
-const newRewardTokenId = "0.0.4310077";
-const rewardTokenAddress = "0x0000000000000000000000000000000000423252";
+const newRewardTokenId = "0.0.5449";
+const rewardTokenAddress = "0x0000000000000000000000000000000000001549";
 const newSharesTokenAddress = "0x000000000000000000000000000000000041c440";
 const newSharesTokenId = "0.0.4310080";
 const newVaultId = "0.0.4229240";
 
-const vaultEr = "0xe95E635753a8A233cB736c5CB0dF181Bb865a90b";
+const vaultEr = "0xEC0b1cddD6755954c7dcbc72FE381B76D92C3E4B";
 // Tests
 describe("Vault", function () {
     async function deployFixture() {

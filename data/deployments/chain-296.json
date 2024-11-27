@@ -38,7 +38,8 @@
     "TokenBalancer": "0x5dbee7C32027f5A5dF946990BfB4345821E33E80"
   },
   "autoCompounder": {
-    "AutoCompounder": "0xa250aeA16b9Aed0996Dd33D70d91536e523A9Fc2"
+    "AutoCompounder": "0xa250aeA16b9Aed0996Dd33D70d91536e523A9Fc2",
+    "AutoCompounderFactory": "0xdB21C090927E8b3Aa161CBda9a9B7662A5D1fe96"
   },
   "nft": {
     "HederaNFT": "0xCeabeC99782c70840A8C11eE931473Ec6407678B"

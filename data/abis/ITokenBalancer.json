@@ -9,6 +9,44 @@
         {
           "indexed": true,
           "internalType": "address",
+          "name": "createdToken",
+          "type": "address"
+        }
+      ],
+      "name": "CreatedToken",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Deposit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
           "name": "token",
           "type": "address"
         },
@@ -48,10 +86,35 @@
       "type": "event"
     },
     {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "receiver",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Withdraw",
+      "type": "event"
+    },
+    {
       "inputs": [
         {
           "internalType": "address",
-          "name": "token",
+          "name": "aToken",
           "type": "address"
         },
         {
@@ -63,22 +126,14 @@
           "internalType": "uint256",
           "name": "percentage",
           "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "isAutoCompounder",
+          "type": "bool"
         }
       ],
       "name": "addTrackingToken",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address[]",
-          "name": "_rewardTokens",
-          "type": "address[]"
-        }
-      ],
-      "name": "rebalance",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

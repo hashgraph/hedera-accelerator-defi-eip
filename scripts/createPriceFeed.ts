@@ -8,58 +8,46 @@ dotenv.config();
 
 const mockPyth = "0x330C40b17607572cf113973b8748fD1aEd742943";
 
-// async function createPriceFeedData(
-//     id: any,
-//     price: number,
-//     conf: number,
-//     expo: number,
-//     emaPrice: number,
-//     emaConf: number,
-//     publishTime: number,
-//     prevPublishTime: number,
-//     client: Client
-// ): Promise<string | null> {
+async function createPriceFeedData(
+    id: any,
+    price: number,
+    conf: number,
+    expo: number,
+    publishTime: number,
+    emaPrice: number,
+    emaConf: number,
+    emaExpo: number,
+    emaPublishTime: number,
+    prevPublishTime: number
+): Promise<string | null> {
+    const types = [
+        "bytes32",                   // id
+        "int64",                     // price.price
+        "uint64",                    // price.conf
+        "int32",                     // price.expo
+        "uint64",                    // price.publishTime
+        "int64",                     // emaPrice.price
+        "uint64",                    // emaPrice.conf
+        "int32",                     // emaPrice.expo
+        "uint64",                    // emaPrice.publishTime
+        "uint64"                     // prevPublishTime
+    ];
 
-//     const pyth = new ethers.Contract(mockPyth, abi, ethers.getDefaultProvider());
+    const values = [
+        id,             // id
+        price,          // price.price
+        conf,           // price.conf
+        expo,           // price.expo
+        publishTime,    // price.publishTime
+        emaPrice,       // emaPrice.price
+        emaConf,        // emaPrice.conf
+        emaExpo,        // emaPrice.expo
+        emaPublishTime, // emaPrice.publishTime
+        prevPublishTime // prevPublishTime
+    ];
 
-//     const encodedParams = ethers pyth.interface.encodeFunctionData(
-//         "createPriceFeedUpdateData",
-//         [id, price, conf, expo, emaPrice, emaConf, publishTime, prevPublishTime]
-//     );
-
-//     console.log("work");
-
-//     // Call the contract on Hedera network
-//     const contractCall = await new ContractCallQuery()
-//         .setContractId(mockPyth)
-//         .setFunctionParameters(Uint8Array.from(Buffer.from(encodedParams, 'hex')))
-//         .setGas(100000) // Set appropriate gas limit
-//         .execute(client);
-
-//     console.log("work");
-
-//     // Decode response from Hedera
-//     const response = ethers.AbiCoder.defaultAbiCoder().decode(["bytes"], contractCall.bytes);
-
-//     console.log("work");
-
-// const priceFeedData = await pyth.createPriceFeedUpdateData(
-//     id,
-//     price,
-//     conf,
-//     expo,
-//     emaPrice,
-//     emaConf,
-//     publishTime,
-//     prevPublishTime
-// );
-
-
-//     // await pyth.updatePriceFeeds(priceFeedData);
-
-//     // Return the encoded price feed data
-//     return response.toString();
-// }
+    return ethers.AbiCoder.defaultAbiCoder().encode(types, values);
+}
 
 async function main() {
     const [deployer] = await ethers.getSigners();
@@ -73,65 +61,25 @@ async function main() {
         operatorPrKey
     );
 
-    const types = [
-        "bytes32",                   // id
-        "int64",                     // price.price
-        "uint64",                    // price.conf
-        "int32",                     // price.expo
-        "uint64",                    // price.publishTime
-        "int64",                     // emaPrice.price
-        "uint64",                    // emaPrice.conf
-        "int32",                     // emaPrice.expo
-        "uint64",                    // emaPrice.publishTime
-        "uint64"                     // prevPublishTime
-    ];
-    // const values = [
-    //     "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",  // id
-    //     1500000000,    // price.price
-    //     100000000,     // price.conf
-    //     -8,            // price.expo
-    //     1633045600,    // price.publishTime
-    //     1495000000,    // emaPrice.price
-    //     95000000,      // emaPrice.conf
-    //     -8,            // emaPrice.expo
-    //     1633045600,    // emaPrice.publishTime
-    //     1633041600     // prevPublishTime
-    // ];
+    const id = ethers.randomBytes(32);
 
-    const values = [
-        "0x2222222222222222222222222222222222222222222222222222222222222222",  // id
-        1500000,    // price.price
-        2000,     // price.conf
+    console.log(ethers.hexlify(id));
+
+    const priceFeed = await createPriceFeedData(
+        id,
+        1500000,
+        2000,
         -5,            // price.expo
         1698675600,    // price.publishTime
-        1480000,    // emaPrice.price
-        1800,      // emaPrice.conf
+        1480000,       // emaPrice.price
+        1800,          // emaPrice.conf
         -8,            // emaPrice.expo
         1698675600,    // emaPrice.publishTime
-        1698672000     // prevPublishTime
-    ];
-    const priceFeed = ethers.AbiCoder.defaultAbiCoder().encode(types, values);
-
-    // Query the contract to check changes in state variable
-    // const contractQueryTx1 = new ContractCallQuery()
-    //     .setContractId("0.0.4999394")
-    //     .setGas(100000)
-    //     .setFunction(
-    //         "queryPriceFeed",
-    //         new ContractFunctionParameters()
-    //             .addBytes32(
-    //                 ethers.getBytes("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
-    //             )
-    //     );
-
-    // const contractQuerySubmit1 = await contractQueryTx1.execute(client);
-
-    // console.log(contractQuerySubmit1);
+        1698672000
+    );
 
     const pyth = await ethers.getContractAt(abi, mockPyth);
-
-    const ar = [priceFeed]
-    const tx = await pyth.updatePriceFeeds(ar);
+    const tx = await pyth.updatePriceFeeds([priceFeed]);
 
     console.log(tx.hash);
 }
