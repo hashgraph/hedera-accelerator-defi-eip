@@ -6,7 +6,7 @@ import "../erc721/ERC721Metadata.sol";
 
 /**
  * @title AuditRegistry
- * @author
+ * @author Hashgraph
  * @notice This contract manages audit records for building NFTs.
  */
 contract AuditRegistry is AccessControl {
