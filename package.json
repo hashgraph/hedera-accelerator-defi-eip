@@ -40,6 +40,7 @@
     "eslint-plugin-promise": "^6.1.1",
     "ethers": "^6.11.1",
     "hardhat": "^2.21.0",
+    "hardhat-contract-sizer": "^2.10.0",
     "hardhat-gas-reporter": "^1.0.10",
     "solhint": "^4.1.1",
     "solhint-plugin-prettier": "^0.1.0",

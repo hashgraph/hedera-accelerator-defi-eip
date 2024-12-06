@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "../erc721/ERC721Metadata.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
  * @title AuditRegistry
@@ -23,7 +23,7 @@ contract AuditRegistry is AccessControl {
     mapping(uint256 => AuditRecord) public auditRecords;
     mapping(uint256 => uint256[]) public buildingAuditRecords;
     uint256 public auditRecordCounter = 0;
-    ERC721Metadata public buildingNFT;
+    IERC721 public buildingNFT;
 
     event AuditRecordAdded(
         uint256 indexed auditRecordId,
@@ -45,12 +45,12 @@ contract AuditRegistry is AccessControl {
     event AuditorRemoved(address indexed auditor);
 
     /**
-     * @dev Constructor sets the ERC721Metadata contract address and grants admin role.
-     * @param _buildingNFTAddress Address of the ERC721Metadata contract
+     * @dev Constructor sets the IERC721 contract address and grants admin role.
+     * @param _buildingNFTAddress Address of the IERC721 contract
      */
     constructor(address _buildingNFTAddress) {
         require(_buildingNFTAddress != address(0), "Invalid NFT contract address");
-        buildingNFT = ERC721Metadata(_buildingNFTAddress);
+        buildingNFT = IERC721(_buildingNFTAddress);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // Use internal function to assign admin role
     }
 

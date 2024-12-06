@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
  * @author Hashgraph
  * @notice ERC721 custom contract to handle onchain metadata
  */
-contract ERC721Metadata is ERC721, ERC721URIStorage, Ownable {
+contract ERC721Metadata is IERC721Metadata, ERC721, ERC721URIStorage, Ownable {
     using Strings for string;
 
     /**
@@ -372,7 +372,7 @@ contract ERC721Metadata is ERC721, ERC721URIStorage, Ownable {
     function tokenURI(uint256 tokenId)
         public
         view
-        override(ERC721, ERC721URIStorage)
+        override(IERC721Metadata, ERC721, ERC721URIStorage)
         returns (string memory)
     {
         return super.tokenURI(tokenId);
@@ -381,7 +381,7 @@ contract ERC721Metadata is ERC721, ERC721URIStorage, Ownable {
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721URIStorage)
+        override(IERC165, ERC721, ERC721URIStorage)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
