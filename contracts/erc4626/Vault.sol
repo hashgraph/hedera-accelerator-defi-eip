@@ -28,10 +28,10 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
     using Bits for uint256;
 
     // Staking token
-    ERC20 public immutable _asset;
+    ERC20 private immutable _asset;
 
     // Share token
-    address public _share;
+    address private _share;
 
     // Staked amount
     uint256 public assetTotalSupply;
@@ -145,15 +145,14 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      * @return shares The amount of shares to receive.
      */
     function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
+        require(receiver != address(0), "HederaVault: Invalid receiver address");
         if ((shares = previewDeposit(assets)) == 0) revert ZeroShares(assets);
 
         _asset.safeTransferFrom(msg.sender, address(this), assets);
 
-        assetTotalSupply += assets;
-
+        // Mint and transfer share
         SafeHTS.safeMintToken(_share, uint64(assets), new bytes[](0));
-
-        SafeHTS.safeTransferToken(_share, address(this), msg.sender, int64(uint64(assets)));
+        SafeHTS.safeTransferToken(_share, address(this), receiver, int64(uint64(assets)));
 
         emit Deposit(msg.sender, receiver, assets, shares);
 
@@ -164,15 +163,18 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      * @dev Mints shares to receiver by depositing assets of underlying tokens.
      *
      * @param shares The amount of shares to send.
-     * @param to The receiver of tokens.
+     * @param receiver The receiver of tokens.
      * @return amount The amount of tokens to receive.
      */
-    function mint(uint256 shares, address to) public override nonReentrant returns (uint256 amount) {
-        _mint(to, amount = previewMint(shares));
+    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 amount) {
+        require(receiver != address(0), "HederaVault: Invalid receiver address");
+        if ((amount = previewMint(shares)) == 0) revert ZeroShares(shares);
 
-        assetTotalSupply += amount;
+        // Mint and transfer share
+        SafeHTS.safeMintToken(_share, uint64(amount), new bytes[](0));
+        SafeHTS.safeTransferToken(_share, address(this), receiver, int64(uint64(amount)));
 
-        emit Deposit(msg.sender, to, amount, shares);
+        emit Deposit(msg.sender, receiver, amount, shares);
 
         _asset.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -192,13 +194,15 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
         address receiver,
         address from
     ) public override nonReentrant returns (uint256 shares) {
+        require(receiver != address(0), "HederaVault: Invalid receiver address");
+        require(from != address(0), "HederaVault: Invalid from address");
+        require((shares = previewWithdraw(amount)) != 0, "HederaVault: Zero assets");
+        require(userContribution[from].sharesAmount >= shares, "HederaVault: Not enough share on the balance");
+
         beforeWithdraw(amount);
 
-        // _burn(from, shares = previewWithdraw(amount));
-        assetTotalSupply -= amount;
-
-        SafeHTS.safeTransferToken(_share, msg.sender, address(this), int64(uint64(amount)));
-
+        // Transfer and burn share
+        SafeHTS.safeTransferToken(_share, from, address(this), int64(uint64(amount)));
         SafeHTS.safeBurnToken(_share, uint64(amount), new int64[](0));
 
         _asset.safeTransfer(receiver, amount);
@@ -219,15 +223,20 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
         address receiver,
         address from
     ) public override nonReentrant returns (uint256 amount) {
-        require((amount = previewRedeem(shares)) != 0, "ZERO_ASSETS");
+        require(receiver != address(0), "HederaVault: Invalid receiver address");
+        require(from != address(0), "HederaVault: Invalid from address");
+        require((amount = previewRedeem(shares)) != 0, "HederaVault: Zero assets");
+        require(userContribution[from].sharesAmount >= shares, "HederaVault: Not enough share on the balance");
 
-        amount = previewRedeem(shares);
-        _burn(from, shares);
-        assetTotalSupply -= amount;
+        beforeWithdraw(amount);
 
-        emit Withdraw(from, receiver, amount, shares);
+        // Transfer and burn share
+        SafeHTS.safeTransferToken(_share, from, address(this), int64(uint64(amount)));
+        SafeHTS.safeBurnToken(_share, uint64(amount), new int64[](0));
 
         _asset.safeTransfer(receiver, amount);
+
+        emit Withdraw(from, receiver, amount, shares);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -240,7 +249,7 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      * @param _amount The amount of shares.
      */
     function beforeWithdraw(uint256 _amount) internal {
-        // claimAllReward(0);
+        claimAllReward(0);
         userContribution[msg.sender].sharesAmount -= _amount;
         assetTotalSupply -= _amount;
     }
@@ -422,9 +431,10 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      * @param _amount The amount of reward token to add.
      */
     function addReward(address _token, uint256 _amount) external payable onlyRole(VAULT_REWARD_CONTROLLER_ROLE) {
-        require(_amount != 0, "Vault: Amount can't be zero");
-        require(assetTotalSupply != 0, "Vault: No token staked yet");
-        require(_token != address(_asset) && _token != _share, "Vault: Reward and Staking tokens cannot be same");
+        require(_amount != 0, "HederaVault: Amount can't be zero");
+        require(assetTotalSupply != 0, "HederaVault: No token staked yet");
+        require(_token != address(_asset) && _token != _share, "HederaVault: Reward and Staking tokens cannot be same");
+        require(_token != address(0), "HederaVault: Invalid reward token");
 
         if (rewardTokens.length == 10) revert MaxRewardTokensAmount();
 
@@ -453,11 +463,14 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
         uint256 rewardTokensSize = rewardTokens.length;
         address _token = feeConfig.token;
 
-        for (uint256 i = _startPosition; i < rewardTokensSize && i < _startPosition + 10; i++) {
-            uint256 reward;
-            address token = rewardTokens[i];
-            reward = (tokensRewardInfo[token].amount - userContribution[msg.sender].lastClaimedAmountT[token])
-                .mulDivDown(1, userContribution[msg.sender].sharesAmount);
+        require(rewardTokensSize != 0, "HederaVault: No reward tokens exist");
+
+        uint256 reward;
+        address token;
+        for (uint256 i = _startPosition; i < rewardTokensSize; i++) {
+            token = rewardTokens[i];
+            reward = getUserReward(msg.sender, token);
+            
             userContribution[msg.sender].lastClaimedAmountT[token] = tokensRewardInfo[token].amount;
             SafeHTS.safeTransferToken(token, address(this), msg.sender, int64(uint64(reward)));
             if (_token != address(0)) _deductFee(reward);
@@ -488,13 +501,19 @@ contract HederaVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
         }
     }
 
-    function getAllRewards(address _user) public view returns (uint256[] memory) {
-        uint256[] memory _rewards;
+    /**
+     * @dev Returns all rewards for a user with fee considering.
+     *
+     * @param _user The user address.
+     * @return _rewards The rewards array.
+     */
+    function getAllRewards(address _user) public view returns (uint256[] memory _rewards) {
+        uint256 rewardsSize = rewardTokens.length;
+        _rewards = new uint256[](rewardsSize);
 
-        for (uint256 i = 0; i < rewardTokens.length; i++) {
+        for (uint256 i = 0; i < rewardsSize; i++) {
             _rewards[i] = getUserReward(_user, rewardTokens[i]);
         }
-        return _rewards;
     }
 }
 
