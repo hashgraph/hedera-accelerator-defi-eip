@@ -95,4 +95,4 @@ node_modules
 .vscode
 .idea
 
-./contractAddresses.json
+/contractAddresses.json

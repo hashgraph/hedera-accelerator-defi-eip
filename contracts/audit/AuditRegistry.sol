@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
  * @title AuditRegistry
- * @author
+ * @author Hashgraph
  * @notice This contract manages audit records for building NFTs.
  */
 contract AuditRegistry is AccessControl {
