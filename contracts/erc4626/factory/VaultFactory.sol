@@ -5,7 +5,7 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {IVaultFactory} from "./IVaultFactory.sol";
-import {HederaVault} from "../Vault.sol";
+import {BasicVault} from "../BasicVault.sol";
 import {FeeConfiguration} from "../../common/FeeConfiguration.sol";
 import {IOwnable} from "./IOwnable.sol";
 
@@ -65,7 +65,7 @@ contract VaultFactory is Ownable, IVaultFactory, ERC165 {
         VaultDetails calldata vaultDetails,
         FeeConfiguration.FeeConfig calldata feeConfig
     ) private returns (address) {
-        bytes memory _code = type(HederaVault).creationCode;
+        bytes memory _code = type(BasicVault).creationCode;
         bytes memory _constructData = abi.encode(
             vaultDetails.stakingToken,
             vaultDetails.shareTokenName,
