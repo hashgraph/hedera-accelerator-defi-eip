@@ -9,7 +9,6 @@ async function deployFixture() {
   const uniswapRouterAddress = await uniswapRouter.getAddress();
   const uniswapFactory = await ethers.deployContract('UniswapFactoryMock', []);
   const uniswapFactoryAddress = await uniswapFactory.getAddress();
-
   const tokenA = await ethers.deployContract('ERC20Mock', ["Token A", "TKA", 18]);
   const tokenB = await ethers.deployContract('ERC20Mock', ["Token B", "TkB", 6]); // USDC
 
@@ -130,11 +129,11 @@ describe('BuildingFactory', () => {
       expect(await building.getUniswapFactory()).to.be.hexEqual(uniswapFactoryAddress);
       expect(await building.getUniswapRouter()).to.be.hexEqual(uniswapRouterAddress);
 
-      const firstBuilding = await buildingFactory.buildingsList(0);
+      const [firstBuilding] = await buildingFactory.getBuildingList();
 
-      expect(firstBuilding.addr).to.be.hexEqual(await building.getAddress());
-      expect(firstBuilding.nftId).to.be.equal(0n);
-      expect(firstBuilding.tokenURI).to.be.equal(tokenURI);
+      expect(firstBuilding[0]).to.be.hexEqual(await building.getAddress());
+      expect(firstBuilding[1]).to.be.equal(0n);
+      expect(firstBuilding[2]).to.be.equal(tokenURI);
 
     });
 
