@@ -5,6 +5,7 @@ import "@nomicfoundation/hardhat-chai-matchers";
 import "hardhat-contract-sizer";
 
 import * as dotenv from "dotenv";
+require("solidity-coverage");
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ const config: HardhatUserConfig = {
       accounts: [PRIVATE_KEY || ""],
     },
     hardhat: {
+      blockGasLimit: 9999999999999,
       gas: 30000000,
       allowUnlimitedContractSize: true,
       // forking: {
