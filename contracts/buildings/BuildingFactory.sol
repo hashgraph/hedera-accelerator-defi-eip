@@ -20,6 +20,7 @@ contract BuildingFactory is OwnableUpgradeable  {
         address uniswapFactory;
         address buildingBeacon;
         BuildingInfo[] buildingsList;
+        mapping (address => BuildingInfo) buildingDetails;
     }
 
     struct BuildingInfo {
@@ -69,6 +70,15 @@ contract BuildingFactory is OwnableUpgradeable  {
     }
 
     /**
+     * getBuildingDetails get details of building
+     * @param buildingAddress address of the building contract 
+     */
+    function getBuildingDetails(address buildingAddress) public view returns (BuildingInfo memory) {
+        BuildingFactoryStorage storage $ = _getBuildingFactoryStorage();
+        return $.buildingDetails[buildingAddress];
+    }
+
+    /**
      * newBuilding Creates new building with create2, mints NFT and store it.
      * @param tokenURI metadata location
      */
@@ -81,11 +91,13 @@ contract BuildingFactory is OwnableUpgradeable  {
 
         uint256 tokenId = IERC721Metadata($.nft).mint(address(buildingProxy), tokenURI);
 
-        $.buildingsList.push(BuildingInfo(
+        $.buildingDetails[address(buildingProxy)] = BuildingInfo(
             address(buildingProxy),
             tokenId,
             tokenURI
-        ));
+        );
+
+        $.buildingsList.push($.buildingDetails[address(buildingProxy)]);        
 
         emit NewBuilding(address(buildingProxy));
     }

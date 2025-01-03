@@ -135,7 +135,12 @@ describe('BuildingFactory', () => {
       expect(firstBuilding[1]).to.be.equal(0n);
       expect(firstBuilding[2]).to.be.equal(tokenURI);
 
-    });
+      const firstBuildingDetails = await buildingFactory.getBuildingDetails(await building.getAddress());
 
+      expect(firstBuildingDetails[0]).to.be.hexEqual(await building.getAddress());
+      expect(firstBuildingDetails[1]).to.be.equal(0n);
+      expect(firstBuildingDetails[2]).to.be.equal(tokenURI);
+
+    });
   });
 });
