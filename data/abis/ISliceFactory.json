@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "IAutoCompounderFactory",
-  "sourceName": "contracts/erc4626/factory/interfaces/IAutoCompounderFactory.sol",
+  "contractName": "ISliceFactory",
+  "sourceName": "contracts/erc4626/factory/interfaces/ISliceFactory.sol",
   "abi": [
     {
       "anonymous": false,
@@ -9,23 +9,29 @@
         {
           "indexed": true,
           "internalType": "address",
-          "name": "autoCompounder",
+          "name": "slice",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "pyth",
           "type": "address"
         },
         {
           "indexed": false,
-          "internalType": "string",
-          "name": "name",
-          "type": "string"
+          "internalType": "address",
+          "name": "uniswapRouter",
+          "type": "address"
         },
         {
           "indexed": false,
-          "internalType": "string",
-          "name": "symbol",
-          "type": "string"
+          "internalType": "address",
+          "name": "usdc",
+          "type": "address"
         }
       ],
-      "name": "AutoCompounderDeployed",
+      "name": "SliceDeployed",
       "type": "event"
     },
     {
@@ -39,44 +45,34 @@
           "components": [
             {
               "internalType": "address",
-              "name": "uniswapV2Router",
+              "name": "pyth",
               "type": "address"
             },
             {
               "internalType": "address",
-              "name": "vault",
+              "name": "uniswapRouter",
               "type": "address"
             },
             {
               "internalType": "address",
               "name": "usdc",
               "type": "address"
-            },
-            {
-              "internalType": "string",
-              "name": "aTokenName",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "aTokenSymbol",
-              "type": "string"
             }
           ],
-          "internalType": "struct IAutoCompounderFactory.AutoCompounderDetails",
-          "name": "autoCompounderDetails",
+          "internalType": "struct ISliceFactory.SliceDetails",
+          "name": "sliceDetails",
           "type": "tuple"
         }
       ],
-      "name": "deployAutoCompounder",
+      "name": "deploySlice",
       "outputs": [
         {
           "internalType": "address",
-          "name": "autoCompounder",
+          "name": "slice",
           "type": "address"
         }
       ],
-      "stateMutability": "payable",
+      "stateMutability": "nonpayable",
       "type": "function"
     }
   ],

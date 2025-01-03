@@ -4,9 +4,9 @@ pragma solidity 0.8.24;
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {IAutoCompounderFactory} from "./IAutoCompounderFactory.sol";
+import {IAutoCompounderFactory} from "./interfaces/IAutoCompounderFactory.sol";
 import {AutoCompounder} from "../AutoCompounder.sol";
-import {IOwnable} from "./IOwnable.sol";
+import {IOwnable} from "./interfaces/IOwnable.sol";
 
 /**
  * @title AutoCompounder Factory
@@ -35,10 +35,13 @@ contract AutoCompounderFactory is IAutoCompounderFactory, Ownable, ERC165 {
         string calldata salt,
         AutoCompounderDetails calldata autoCompounderDetails
     ) external payable returns (address autoCompounder) {
-        require(autoCompounderDeployed[salt] == address(0), "AutoCompounder already deployed");
-        require(autoCompounderDetails.uniswapV2Router != address(0), "Invalid Uniswap Router address");
-        require(autoCompounderDetails.vault != address(0), "Invalid Vault address");
-        require(autoCompounderDetails.usdc != address(0), "Invalid USDC address");
+        require(autoCompounderDeployed[salt] == address(0), "AutoCompounderFactory: AutoCompounder already deployed");
+        require(
+            autoCompounderDetails.uniswapV2Router != address(0),
+            "AutoCompounderFactory: Invalid Uniswap Router address"
+        );
+        require(autoCompounderDetails.vault != address(0), "AutoCompounderFactory: Invalid Vault address");
+        require(autoCompounderDetails.usdc != address(0), "AutoCompounderFactory: Invalid USDC address");
 
         autoCompounder = _deployAutoCompounder(salt, autoCompounderDetails);
 

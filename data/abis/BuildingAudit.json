@@ -41,10 +41,10 @@
     },
     {
       "inputs": [],
-      "name": "auditRegistry",
+      "name": "getAuditRegistry",
       "outputs": [
         {
-          "internalType": "contract AuditRegistry",
+          "internalType": "address",
           "name": "",
           "type": "address"
         }

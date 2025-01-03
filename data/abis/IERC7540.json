@@ -125,7 +125,7 @@
         },
         {
           "internalType": "address",
-          "name": "receiver",
+          "name": "operator",
           "type": "address"
         },
         {

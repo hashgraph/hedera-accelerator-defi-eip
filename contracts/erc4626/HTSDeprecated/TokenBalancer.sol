@@ -5,19 +5,19 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20} from "./ERC20.sol";
+import {ERC20} from ".././ERC20.sol";
 
-import {IERC4626} from "./IERC4626.sol";
+import {IERC4626} from ".././IERC4626.sol";
 
 import {IPyth} from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import {PythStructs} from "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 import {PythUtils} from "@pythnetwork/pyth-sdk-solidity/PythUtils.sol";
 
-import {IUniswapV2Router02} from "./interfaces/IUniswapV2Router02.sol";
-import {ITokenBalancer} from "./interfaces/ITokenBalancer.sol";
-import {IAutoCompounder} from "./interfaces/IAutoCompounder.sol";
+import {IUniswapV2Router02} from ".././interfaces/IUniswapV2Router02.sol";
+import {ITokenBalancer} from ".././interfaces/ITokenBalancer.sol";
+import {IAutoCompounder} from ".././interfaces/IAutoCompounder.sol";
 
-import "../common/safe-HTS/SafeHTS.sol";
+import "../../common/safe-HTS/SafeHTS.sol";
 
 /**
  * @title Token Balancer

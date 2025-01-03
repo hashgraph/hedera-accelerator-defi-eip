@@ -1,6 +1,6 @@
-import { anyValue, ethers, expect } from "../setup";
-import { TokenTransfer, createFungibleToken, TokenBalance, createAccount, addToken, mintToken } from "../../scripts/utils";
-import { getCorrectDepositNumber } from "./helper";
+import { anyValue, ethers, expect } from "../../setup";
+import { TokenTransfer, createFungibleToken, TokenBalance, createAccount, addToken, mintToken } from "../../../scripts/utils";
+import { getCorrectDepositNumber } from "../helper";
 import { PrivateKey, Client, AccountId, TokenAssociateTransaction, AccountBalanceQuery } from "@hashgraph/sdk";
 import hre from "hardhat";
 

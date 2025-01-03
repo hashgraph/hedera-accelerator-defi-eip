@@ -4,10 +4,10 @@ pragma solidity 0.8.24;
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {IVaultFactory} from "./IVaultFactory.sol";
+import {IVaultFactory} from "./interfaces/IVaultFactory.sol";
 import {BasicVault} from "../BasicVault.sol";
 import {FeeConfiguration} from "../../common/FeeConfiguration.sol";
-import {IOwnable} from "./IOwnable.sol";
+import {IOwnable} from "./interfaces/IOwnable.sol";
 
 /**
  * @title Vault Factory
@@ -41,10 +41,10 @@ contract VaultFactory is Ownable, IVaultFactory, ERC165 {
         VaultDetails calldata vaultDetails,
         FeeConfiguration.FeeConfig calldata feeConfig
     ) external payable returns (address vault) {
-        require(vaultDeployed[salt] == address(0), "Vault already deployed");
-        require(vaultDetails.stakingToken != address(0), "Invalid staking token");
-        require(vaultDetails.vaultRewardController != address(0), "Invalid reward controller address");
-        require(vaultDetails.feeConfigController != address(0), "Invalid fee controller address");
+        require(vaultDeployed[salt] == address(0), "VaultFactory: Vault already deployed");
+        require(vaultDetails.stakingToken != address(0), "VaultFactory: Invalid staking token");
+        require(vaultDetails.vaultRewardController != address(0), "VaultFactory: Invalid reward controller address");
+        require(vaultDetails.feeConfigController != address(0), "VaultFactory: Invalid fee controller address");
 
         vault = _deployVault(salt, vaultDetails, feeConfig);
 

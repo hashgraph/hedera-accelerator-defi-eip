@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
   "contractName": "IVaultFactory",
-  "sourceName": "contracts/erc4626/factory/IVaultFactory.sol",
+  "sourceName": "contracts/erc4626/factory/interfaces/IVaultFactory.sol",
   "abi": [
     {
       "anonymous": false,

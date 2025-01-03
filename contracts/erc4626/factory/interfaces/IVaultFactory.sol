@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {FeeConfiguration} from "../../common/FeeConfiguration.sol";
+import {FeeConfiguration} from "../../../common/FeeConfiguration.sol";
 
 /**
  * @title Vault Factory

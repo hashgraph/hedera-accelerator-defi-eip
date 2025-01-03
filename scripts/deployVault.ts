@@ -163,14 +163,18 @@ async function main() {
 
   console.log("AutoCompounder deployed with address: ", await autoCompounder.getAddress());
 
-  const AutoCompounderFactory = await ethers.getContractFactory("AutoCompounderFactory");
-  const autoCompounderFactory = await AutoCompounderFactory.deploy(
+  const SliceFactory = await ethers.getContractFactory("SliceFactory", {
+    libraries: {
+      PythUtils: pythUtilsAddress,
+    },
+  });
+  const sliceFactory = await SliceFactory.deploy(
     { from: deployer.address, gasLimit: 4000000 }
   );
-  console.log("Hash ", autoCompounderFactory.deploymentTransaction()?.hash);
-  await autoCompounderFactory.waitForDeployment();
+  console.log("Hash ", sliceFactory.deploymentTransaction()?.hash);
+  await sliceFactory.waitForDeployment();
 
-  console.log("AutoCompounder Factory deployed with address: ", await autoCompounderFactory.getAddress());
+  console.log("Slice Factory deployed with address: ", await sliceFactory.getAddress());
 }
 
 main().catch((error) => {

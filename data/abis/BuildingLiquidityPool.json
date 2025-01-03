@@ -28,7 +28,7 @@
     },
     {
       "inputs": [],
-      "name": "uniswapFactory",
+      "name": "getUniswapFactory",
       "outputs": [
         {
           "internalType": "address",
@@ -41,7 +41,7 @@
     },
     {
       "inputs": [],
-      "name": "uniswapRouter",
+      "name": "getUniswapRouter",
       "outputs": [
         {
           "internalType": "address",

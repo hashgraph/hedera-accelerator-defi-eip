@@ -1,8 +1,8 @@
-import { ethers, expect, time } from "../setup";
-import { TokenTransfer, createFungibleToken, TokenBalance, createAccount, addToken, mintToken } from "../../scripts/utils";
+import { ethers, expect, time } from "../../setup";
+import { TokenTransfer, createFungibleToken, TokenBalance, createAccount, addToken, mintToken } from "../../../scripts/utils";
 import { PrivateKey, Client, AccountId, TokenAssociateTransaction, AccountBalanceQuery } from "@hashgraph/sdk";
-import erc20Abi from "./IERC20.json";
-import { Locker } from "../../typechain-types";
+import erc20Abi from "../IERC20.json";
+import { Locker } from "../../../typechain-types";
 import { BigNumberish } from "ethers";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
