@@ -8,7 +8,8 @@
     "ModularCompliance": "0x3134520cBB0cC9d0fEA9EAE182cCc29b3b20f0C8",
     "Identity": "0xdf72070C2bCA419215f1b4A57837396F52c0e1B8",
     "ImplementationAuthority": "0x0EE2CDdFFcDe197319Ba2Ea8684469bbD25c2e79",
-    "HTSToken": "0xDCf36eAd241EB927E1046abcF17fE9FB31ecc646"
+    "HTSToken": "0xDCf36eAd241EB927E1046abcF17fE9FB31ecc646",
+    "OneSidedExchange": "0xac5b680F7be03D300255beD1B686c459dd54ab11"
   },
   "factories": {
     "IdFactory": "0xCe444169a11761b361D212005334b13A9d454061",

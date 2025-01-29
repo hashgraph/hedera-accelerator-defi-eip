@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.24;
 pragma abicoder v2;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -30,9 +30,9 @@ contract OneSidedExchange is ReentrancyGuard, Ownable {
     /**
      * @dev Emitted when `amount` of tokens are deposited to contract.
      *
-     * Emits a {Deposit} event.
+     * Emits a {LiquidityAdded} event.
      */
-    event Deposit(address token, uint256 amount);
+    event LiquidityAdded(address token, uint256 amount);
     /**
      * @dev Emitted when `amount` of tokens are withdrawed from contract.
      *
@@ -66,8 +66,17 @@ contract OneSidedExchange is ReentrancyGuard, Ownable {
     mapping(address => uint256) internal _buyAmounts;
     /// @dev List of total selled amounts for particular token.
     mapping(address => uint256) internal _sellAmounts;
+    mapping(address => address) internal _tokenOwners;
 
     constructor() Ownable(msg.sender) {}
+
+    modifier onlyTokenOwner(address sender, address token) {
+        if (sender != _tokenOwners[token] && sender != owner()) {
+            revert InvalidAddress("Only token owner can set a price");
+        }
+
+        _;
+    }
 
     /// @dev Modifier that do check on zero address
     /// @param token Token EVM address
@@ -94,27 +103,32 @@ contract OneSidedExchange is ReentrancyGuard, Ownable {
     /// @param amount Amount of tokens to withdraw
     function withdraw(
         address token,
+        address to,
         uint256 amount
     ) public nonReentrant onlyOwner isValidAddress(token) isValidAmount(amount) {
         if (ERC20(token).balanceOf(address(this)) < amount) {
             revert InvalidAmount("Not enought tokens balance to withdraw", amount);
         }
 
-        _withdraw(token, amount);
+        _withdraw(token, to, amount);
     }
 
     /// @dev Method that publicaly exposed for deposit tokens into exchnage
     /// @param token Token EVM address
     /// @param amount Amount of tokens to deposit
-    function deposit(
+    function addLiquidityForToken(
         address token,
         uint256 amount
-    ) public nonReentrant onlyOwner isValidAddress(token) isValidAmount(amount) {
+    ) public nonReentrant isValidAddress(token) isValidAmount(amount) {
+        if (_tokenOwners[token] == address(0)) {
+            _tokenOwners[token] = msg.sender;
+        }
+
         if (amount == 0) {
             revert InvalidAmount("Invalid amount", amount);
         }
 
-        _deposit(msg.sender, token, amount);
+        _addLiquidity(msg.sender, token, amount);
     }
 
     /// @dev Method that publicaly exposed for a swap between tokenA and tokenB
@@ -129,15 +143,15 @@ contract OneSidedExchange is ReentrancyGuard, Ownable {
         _swap(msg.sender, tokenA, tokenB, amount);
     }
 
-    function _deposit(address signer, address token, uint256 amount) internal {
+    function _addLiquidity(address signer, address token, uint256 amount) internal {
         /// @notice Owner should give allowance for a contract to transfer n tokens amount.
         ERC20(token).safeTransferFrom(signer, address(this), amount);
 
-        emit Deposit(token, amount);
+        emit LiquidityAdded(token, amount);
     }
 
-    function _withdraw(address token, uint256 amount) internal {
-        ERC20(token).safeTransfer(owner(), amount);
+    function _withdraw(address token, address to, uint256 amount) internal {
+        ERC20(token).safeTransfer(to, amount);
 
         emit Withdraw(token, amount);
     }
@@ -259,7 +273,7 @@ contract OneSidedExchange is ReentrancyGuard, Ownable {
         address token,
         uint256 amount,
         uint256 interval
-    ) public onlyOwner isValidAddress(token) isValidAmount(amount) {
+    ) public onlyTokenOwner(msg.sender, token) isValidAddress(token) isValidAmount(amount) {
         _buyPrices[token] = Price(amount, interval);
     }
 
@@ -271,7 +285,7 @@ contract OneSidedExchange is ReentrancyGuard, Ownable {
         address token,
         uint256 amount,
         uint256 interval
-    ) public onlyOwner isValidAddress(token) isValidAmount(amount) {
+    ) public onlyTokenOwner(msg.sender, token) isValidAddress(token) isValidAmount(amount) {
         _sellPrices[token] = Price(amount, interval);
     }
 }

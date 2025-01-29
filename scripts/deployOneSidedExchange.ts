@@ -1,11 +1,11 @@
 import { ethers } from 'hardhat';
 
-async function initDeployExchange() {
+async function init() {
     const [deployer] = await ethers.getSigners();
     const oneSidedExchangeImplementation = await ethers.deployContract('OneSidedExchange', deployer);
     const exchangeAddress = await oneSidedExchangeImplementation.getAddress();
 
-    console.log('Deployed:', exchangeAddress);
+    console.log('OneSidedExchange address is:', exchangeAddress);
 }
 
-initDeployExchange();
+init();
