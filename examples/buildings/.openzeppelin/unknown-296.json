@@ -1,0 +1,284 @@
+{
+  "manifestVersion": "3.2",
+  "proxies": [
+    {
+      "address": "0x3bBDF01D12929bA1EE22ef6b2f25541e664Bb38D",
+      "txHash": "0x6ff4cabbb172eb7aa5f40a2f20c237e30a0bc4b9af47153d08e6cdda608ffb56",
+      "kind": "beacon"
+    }
+  ],
+  "impls": {
+    "3ba666783e7461abcab5c560af1cb8e1351935ef1eb59c050fa4b78805c43f06": {
+      "address": "0xdBB93C7C085530591cf8DFc508C6d442CcF4f360",
+      "txHash": "0x1920062c4ba9d32dbfa8e4c44b289ab85be41b7df47a2e006f360934a51bf9f4",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_struct(BuildingInfo)3390_storage)dyn_storage": {
+            "label": "struct BuildingFactory.BuildingInfo[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_struct(BuildingInfo)3390_storage)": {
+            "label": "mapping(address => struct BuildingFactory.BuildingInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(BuildingFactoryStorage)3376_storage": {
+            "label": "struct BuildingFactory.BuildingFactoryStorage",
+            "members": [
+              {
+                "label": "nft",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "uniswapRouter",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "uniswapFactory",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "buildingBeacon",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "onchainIdGateway",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "trexGateway",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "buildingsList",
+                "type": "t_array(t_struct(BuildingInfo)3390_storage)dyn_storage",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "buildingDetails",
+                "type": "t_mapping(t_address,t_struct(BuildingInfo)3390_storage)",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "callableContracts",
+                "type": "t_mapping(t_address,t_bool)",
+                "offset": 0,
+                "slot": "8"
+              }
+            ],
+            "numberOfBytes": "288"
+          },
+          "t_struct(BuildingInfo)3390_storage": {
+            "label": "struct BuildingFactory.BuildingInfo",
+            "members": [
+              {
+                "label": "addr",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "nftId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "tokenURI",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "identity",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "erc3643Token",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          },
+          "t_struct(InitializableStorage)80_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          }
+        },
+        "namespaces": {
+          "erc7201:hashgraph.buildings.BuildingFactory": [
+            {
+              "contract": "BuildingFactory",
+              "label": "nft",
+              "type": "t_address",
+              "src": "contracts\\buildings\\BuildingFactory.sol:19",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "BuildingFactory",
+              "label": "uniswapRouter",
+              "type": "t_address",
+              "src": "contracts\\buildings\\BuildingFactory.sol:20",
+              "offset": 0,
+              "slot": "1"
+            },
+            {
+              "contract": "BuildingFactory",
+              "label": "uniswapFactory",
+              "type": "t_address",
+              "src": "contracts\\buildings\\BuildingFactory.sol:21",
+              "offset": 0,
+              "slot": "2"
+            },
+            {
+              "contract": "BuildingFactory",
+              "label": "buildingBeacon",
+              "type": "t_address",
+              "src": "contracts\\buildings\\BuildingFactory.sol:22",
+              "offset": 0,
+              "slot": "3"
+            },
+            {
+              "contract": "BuildingFactory",
+              "label": "onchainIdGateway",
+              "type": "t_address",
+              "src": "contracts\\buildings\\BuildingFactory.sol:23",
+              "offset": 0,
+              "slot": "4"
+            },
+            {
+              "contract": "BuildingFactory",
+              "label": "trexGateway",
+              "type": "t_address",
+              "src": "contracts\\buildings\\BuildingFactory.sol:24",
+              "offset": 0,
+              "slot": "5"
+            },
+            {
+              "contract": "BuildingFactory",
+              "label": "buildingsList",
+              "type": "t_array(t_struct(BuildingInfo)3390_storage)dyn_storage",
+              "src": "contracts\\buildings\\BuildingFactory.sol:25",
+              "offset": 0,
+              "slot": "6"
+            },
+            {
+              "contract": "BuildingFactory",
+              "label": "buildingDetails",
+              "type": "t_mapping(t_address,t_struct(BuildingInfo)3390_storage)",
+              "src": "contracts\\buildings\\BuildingFactory.sol:26",
+              "offset": 0,
+              "slot": "7"
+            },
+            {
+              "contract": "BuildingFactory",
+              "label": "callableContracts",
+              "type": "t_mapping(t_address,t_bool)",
+              "src": "contracts\\buildings\\BuildingFactory.sol:27",
+              "offset": 0,
+              "slot": "8"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
