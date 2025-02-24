@@ -13,16 +13,22 @@
           "type": "address"
         },
         {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "priceId",
-          "type": "bytes32"
+          "indexed": true,
+          "internalType": "address",
+          "name": "asset",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "priceFeed",
+          "type": "address"
         },
         {
           "indexed": false,
-          "internalType": "uint256",
+          "internalType": "uint16",
           "name": "allocationPercentage",
-          "type": "uint256"
+          "type": "uint16"
         }
       ],
       "name": "AllocationAdded",
@@ -39,9 +45,9 @@
         },
         {
           "indexed": false,
-          "internalType": "uint256",
+          "internalType": "uint16",
           "name": "allocationPercentage",
-          "type": "uint256"
+          "type": "uint16"
         }
       ],
       "name": "AllocationPercentageChanged",
@@ -105,14 +111,14 @@
           "type": "address"
         },
         {
-          "internalType": "bytes32",
-          "name": "priceId",
-          "type": "bytes32"
+          "internalType": "address",
+          "name": "priceFeed",
+          "type": "address"
         },
         {
-          "internalType": "uint256",
+          "internalType": "uint16",
           "name": "percentage",
-          "type": "uint256"
+          "type": "uint16"
         }
       ],
       "name": "addAllocation",
@@ -162,14 +168,14 @@
               "type": "address"
             },
             {
-              "internalType": "bytes32",
-              "name": "priceId",
-              "type": "bytes32"
+              "internalType": "address",
+              "name": "asset",
+              "type": "address"
             },
             {
-              "internalType": "uint256",
+              "internalType": "uint16",
               "name": "targetPercentage",
-              "type": "uint256"
+              "type": "uint16"
             }
           ],
           "internalType": "struct ISlice.Allocation",
@@ -195,9 +201,9 @@
           "type": "address"
         },
         {
-          "internalType": "uint256",
+          "internalType": "uint16",
           "name": "percentage",
-          "type": "uint256"
+          "type": "uint16"
         }
       ],
       "name": "setAllocationPercentage",

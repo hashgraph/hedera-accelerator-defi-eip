@@ -13,6 +13,12 @@
           "type": "address"
         },
         {
+          "indexed": true,
+          "internalType": "address",
+          "name": "vault",
+          "type": "address"
+        },
+        {
           "indexed": false,
           "internalType": "string",
           "name": "name",

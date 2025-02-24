@@ -13,10 +13,11 @@ interface IAutoCompounderFactory {
      * @dev Emitted after AutoCompounder deployment.
      *
      * @param autoCompounder The address of the deployed AutoCompounder.
+     * @param vault The address of the related vault.
      * @param name The name of the deployed aToken.
      * @param symbol The symbol of the deployed aToken.
      */
-    event AutoCompounderDeployed(address indexed autoCompounder, string name, string symbol);
+    event AutoCompounderDeployed(address indexed autoCompounder, address indexed vault, string name, string symbol);
 
     // AutoCompounder details struct
     struct AutoCompounderDetails {

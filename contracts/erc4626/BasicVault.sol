@@ -2,34 +2,36 @@
 pragma solidity 0.8.24;
 pragma abicoder v2;
 
-import {ERC20} from "./ERC20.sol";
-import {IERC4626} from "./IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {FeeConfiguration} from "../common/FeeConfiguration.sol";
 
 import {FixedPointMathLib} from "./FixedPointMathLib.sol";
-import {SafeTransferLib} from "./SafeTransferLib.sol";
-
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title Basic Vault
  *
  * The contract which represents a custom Vault.
  */
-contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
-    using SafeTransferLib for ERC20;
+contract BasicVault is ERC4626, ERC165, FeeConfiguration, Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
     using Bits for uint256;
 
-    // Staking token
-    ERC20 private immutable _asset;
-
-    // Staked amount
-    uint256 private _assetTotalSupply;
+    // Min reward amount considired in case of small reward
+    uint256 private constant MIN_REWARD = 1;
 
     // Reward tokens
     address[] private _rewardTokens;
@@ -71,6 +73,9 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      */
     event RewardAdded(address indexed rewardToken, uint256 amount);
 
+    // Using if owner adds reward which exceeds max token amount
+    error MaxRewardTokensAmount();
+
     /**
      * @dev Initializes contract with passed parameters.
      *
@@ -82,17 +87,19 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      * @param _feeConfigController The fee config controller user.
      */
     constructor(
-        ERC20 _underlying,
+        IERC20 _underlying,
         string memory _name,
         string memory _symbol,
         FeeConfig memory _feeConfig,
         address _vaultRewardController,
         address _feeConfigController
-    ) payable ERC20(_name, _symbol, _underlying.decimals()) Ownable(msg.sender) {
+    ) payable ERC20(_name, _symbol) ERC4626(_underlying) Ownable(msg.sender) {
         __FeeConfiguration_init(_feeConfig, _vaultRewardController, _feeConfigController);
-
-        _asset = _underlying;
     }
+
+    /*///////////////////////////////////////////////////////////////
+                        DEPOSIT/WITHDRAWAL LOGIC
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @dev Deposits staking token to the Vault and returns shares.
@@ -102,14 +109,13 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      * @return shares The amount of shares to receive.
      */
     function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
-        require(receiver != address(0), "HederaVault: Invalid receiver address");
-        if ((shares = previewDeposit(assets)) == 0) revert ZeroShares(assets);
+        uint256 maxAssets = maxDeposit(receiver);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
+        }
 
-        _asset.safeTransferFrom(msg.sender, address(this), assets);
-
-        _mint(receiver, assets);
-
-        emit Deposit(msg.sender, receiver, assets, shares);
+        shares = previewDeposit(assets);
+        _deposit(_msgSender(), receiver, assets, shares);
 
         afterDeposit(assets, receiver);
     }
@@ -119,47 +125,42 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      *
      * @param shares The amount of shares to send.
      * @param receiver The receiver of tokens.
-     * @return amount The amount of tokens to receive.
+     * @return assets The amount of tokens to receive.
      */
-    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 amount) {
-        require(receiver != address(0), "HederaVault: Invalid receiver address");
-        if ((amount = previewMint(shares)) == 0) revert ZeroShares(shares);
+    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 assets) {
+        uint256 maxShares = maxMint(receiver);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
+        }
 
-        // Mint and transfer share
-        _mint(receiver, amount);
+        assets = previewMint(shares);
+        _deposit(_msgSender(), receiver, assets, shares);
 
-        emit Deposit(msg.sender, receiver, amount, shares);
-
-        _asset.safeTransferFrom(msg.sender, address(this), amount);
-
-        afterDeposit(amount, receiver);
+        afterDeposit(assets, receiver);
     }
 
     /**
      * @dev Burns shares from owner and sends assets of underlying tokens to receiver.
      *
-     * @param amount The amount of assets.
+     * @param assets The amount of assets.
      * @param receiver The staking token receiver.
-     * @param from The owner of shares.
+     * @param owner The owner of shares.
      * @return shares The amount of shares to burn.
      */
     function withdraw(
-        uint256 amount,
+        uint256 assets,
         address receiver,
-        address from
+        address owner
     ) public override nonReentrant returns (uint256 shares) {
-        require(receiver != address(0), "HederaVault: Invalid receiver address");
-        require(from != address(0), "HederaVault: Invalid from address");
-        require((shares = previewWithdraw(amount)) != 0, "HederaVault: Zero assets");
-        require(_userContribution[from].sharesAmount >= shares, "HederaVault: Not enough share on the balance");
+        uint256 maxAssets = maxWithdraw(owner);
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
+        }
 
-        beforeWithdraw(amount, receiver);
+        beforeWithdraw(assets, receiver);
 
-        _burn(from, amount);
-
-        _asset.safeTransfer(receiver, amount);
-
-        emit Withdraw(from, receiver, amount, shares);
+        shares = previewWithdraw(assets);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
 
     /**
@@ -167,26 +168,21 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      *
      * @param shares The amount of shares.
      * @param receiver The staking token receiver.
-     * @param from The shares owner.
-     * @return amount The amount of shares to burn.
+     * @param owner The shares owner.
+     * @return assets The amount of shares to burn. beforeWithdraw(amount, receiver);
      */
     function redeem(
         uint256 shares,
         address receiver,
-        address from
-    ) public override nonReentrant returns (uint256 amount) {
-        require(receiver != address(0), "HederaVault: Invalid receiver address");
-        require(from != address(0), "HederaVault: Invalid from address");
-        require((amount = previewRedeem(shares)) != 0, "HederaVault: Zero assets");
-        require(_userContribution[msg.sender].sharesAmount >= shares, "HederaVault: Not enough share on the balance");
+        address owner
+    ) public override nonReentrant returns (uint256 assets) {
+        uint256 maxShares = maxRedeem(owner);
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+        }
 
-        beforeWithdraw(amount, receiver);
-
-        _burn(from, shares);
-
-        _asset.safeTransfer(receiver, amount);
-
-        emit Withdraw(from, receiver, amount, shares);
+        assets = previewRedeem(shares);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -201,7 +197,6 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
     function beforeWithdraw(uint256 _amount, address rewardReceiver) internal {
         claimAllReward(0, rewardReceiver);
         _userContribution[msg.sender].sharesAmount -= _amount;
-        _assetTotalSupply -= _amount;
     }
 
     /**
@@ -219,173 +214,15 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
             _userContribution[msg.sender].sharesAmount = _amount;
             _userContribution[msg.sender].exist = true;
             _userContribution[msg.sender].lastLockedTime = block.timestamp;
-            _assetTotalSupply += _amount;
         } else {
             if (_userContribution[msg.sender].sharesAmount == 0) {
                 _userContribution[msg.sender].sharesAmount += _amount;
-                _assetTotalSupply += _amount;
             } else {
                 claimAllReward(0, rewardReceiver);
                 _userContribution[msg.sender].sharesAmount += _amount;
                 _userContribution[msg.sender].lastLockedTime = block.timestamp;
-                _assetTotalSupply += _amount;
             }
         }
-    }
-
-    /*///////////////////////////////////////////////////////////////
-                        ACCOUNTING LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Returns reward tokens addresses.
-     *
-     * @return Reward tokens.
-     */
-    function getRewardTokens() public view returns (address[] memory) {
-        return _rewardTokens;
-    }
-
-    /**
-     * @dev Returns Share token address.
-     */
-    function share() public view virtual override returns (address) {
-        return address(this);
-    }
-
-    /**
-     * @dev Returns Asset token address.
-     */
-    function asset() public view override returns (address) {
-        return address(_asset);
-    }
-
-    /**
-     * @dev Returns amount of assets on the contract balance.
-     *
-     * @return _asset balance of this contract.
-     */
-    function totalAssets() public view override returns (uint256) {
-        return _asset.balanceOf(address(this));
-    }
-
-    /**
-     * @dev Calculates amount of assets that can be received for user share balance.
-     *
-     * @param user The user address.
-     * @return The amount of underlying assets equivalent to the user's shares.
-     */
-    function assetsOf(address user) public view override returns (uint256) {
-        return previewRedeem(balanceOf[user]);
-    }
-
-    /**
-     * @dev Calculates amount of assets per share.
-     *
-     * @return The _asset amount per share.
-     */
-    function assetsPerShare() public view override returns (uint256) {
-        return previewRedeem(10 ** decimals);
-    }
-
-    /**
-     * @dev Returns the maximum amount of underlying assets that can be deposited by user.
-     *
-     * @return The maximum assets amount that can be deposited.
-     */
-    function maxDeposit(address) public pure override returns (uint256) {
-        return type(uint256).max;
-    }
-
-    /**
-     * @dev Returns the maximum amount of shares that can be minted by user.
-     *
-     * @return The maximum shares amount that can be minted.
-     */
-    function maxMint(address) public pure override returns (uint256) {
-        return type(uint256).max;
-    }
-
-    /**
-     * @dev Calculates the maximum amount of assets that can be withdrawn by user.
-     *
-     * @param user The user address.
-     * @return The maximum amount of assets that can be withdrawn.
-     */
-    function maxWithdraw(address user) public view override returns (uint256) {
-        return assetsOf(user);
-    }
-
-    /**
-     * @dev Returns the maximum number of shares that can be redeemed by user.
-     *
-     * @param user The user address.
-     * @return The maximum number of shares that can be redeemed.
-     */
-    function maxRedeem(address user) public view override returns (uint256) {
-        return balanceOf[user];
-    }
-
-    /**
-     * @dev Calculates the amount of shares that will be minted for a given assets amount.
-     *
-     * @param amount The amount of underlying assets to deposit.
-     * @return shares The estimated amount of shares that can be minted.
-     */
-    function previewDeposit(uint256 amount) public view override returns (uint256 shares) {
-        uint256 supply = totalSupply();
-
-        return supply == 0 ? amount : amount.mulDivDown(1, totalAssets());
-    }
-
-    /**
-     * @dev Calculates the amount of underlying assets equivalent to a given shares amount.
-     *
-     * @param shares The shares amount to be minted.
-     * @return amount The estimated assets amount.
-     */
-    function previewMint(uint256 shares) public view override returns (uint256 amount) {
-        uint256 supply = totalSupply();
-
-        return supply == 0 ? shares : shares.mulDivUp(totalAssets(), supply);
-    }
-
-    /**
-     * @dev Calculates the amount of shares that would be burned for a given assets amount.
-     *
-     * @param amount The amount of underlying assets to withdraw.
-     * @return shares The estimated shares amount that can be burned.
-     */
-    function previewWithdraw(uint256 amount) public view override returns (uint256 shares) {
-        uint256 supply = _asset.balanceOf(address(this));
-
-        return supply == 0 ? amount : amount.mulDivUp(supply, totalAssets());
-    }
-
-    /**
-     * @dev Calculates the amount of underlying assets equivalent to a specific number of shares.
-     *
-     * @param shares The shares amount to redeem.
-     * @return amount The estimated assets amount that can be redeemed.
-     */
-    function previewRedeem(uint256 shares) public view override returns (uint256 amount) {
-        uint256 supply = totalSupply();
-
-        return supply == 0 ? shares : shares.mulDivDown(totalAssets(), supply);
-    }
-
-    /**
-     * @dev Returns asset total supply.
-     */
-    function assetTotalSupply() public view returns (uint256) {
-        return _assetTotalSupply;
-    }
-
-    /**
-     * @dev Returns exchange rate for share/underlying.
-     */
-    function exchangeRate() external pure override returns (uint256) {
-        return 1;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -400,25 +237,22 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      */
     function addReward(address _token, uint256 _amount) external payable onlyRole(VAULT_REWARD_CONTROLLER_ROLE) {
         require(_amount != 0, "HederaVault: Amount can't be zero");
-        require(
-            _token != address(_asset) && _token != address(this),
-            "HederaVault: Reward and Staking tokens cannot be same"
-        );
+        require(_token != asset() && _token != address(this), "HederaVault: Reward and Staking tokens cannot be same");
         require(_token != address(0), "HederaVault: Invalid reward token");
-        require(assetTotalSupply() != 0, "HederaVault: No token staked yet");
+        require(totalAssets() != 0, "HederaVault: No token staked yet");
 
         if (_rewardTokens.length == 10) revert MaxRewardTokensAmount();
 
-        uint256 perShareRewards = _amount.mulDivDown(1, assetTotalSupply());
+        uint256 perShareRewards = _amount.mulDivDown(1, totalAssets());
         RewardsInfo storage rewardInfo = _tokensRewardInfo[_token];
         if (!rewardInfo.exist) {
             _rewardTokens.push(_token);
             rewardInfo.exist = true;
             rewardInfo.amount = perShareRewards;
-            ERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         } else {
             _tokensRewardInfo[_token].amount += perShareRewards;
-            ERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         }
         emit RewardAdded(_token, _amount);
     }
@@ -429,31 +263,28 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      * @param _startPosition The starting index in the reward token list from which to begin claiming rewards.
      * @return The index of the start position after the last claimed reward and the total number of reward tokens.
      */
-    function claimAllReward(
-        uint256 _startPosition,
-        address receiver
-    ) public payable override returns (uint256, uint256) {
-        uint256 rewardTokensSize = _rewardTokens.length;
+    function claimAllReward(uint256 _startPosition, address receiver) public returns (uint256, uint256) {
+        uint256 _rewardTokensSize = _rewardTokens.length;
         address _feeToken = feeConfig.token;
         address _rewardToken;
-        uint256 reward;
+        uint256 _reward;
 
-        require(rewardTokensSize != 0, "HederaVault: No reward tokens exist");
+        require(_rewardTokensSize != 0, "HederaVault: No reward tokens exist");
 
-        for (uint256 i = _startPosition; i < rewardTokensSize; i++) {
+        for (uint256 i = _startPosition; i < _rewardTokensSize; i++) {
             _rewardToken = _rewardTokens[i];
 
-            reward = getUserReward(msg.sender, _rewardToken);
+            _reward = getUserReward(msg.sender, _rewardToken);
             _userContribution[msg.sender].lastClaimedAmountT[_rewardToken] = _tokensRewardInfo[_rewardToken].amount;
 
             // Fee management
             if (_feeToken != address(0)) {
-                ERC20(_rewardToken).safeTransfer(receiver, _deductFee(reward));
+                IERC20(_rewardToken).safeTransfer(receiver, _deductFee(_reward));
             } else {
-                ERC20(_rewardToken).safeTransfer(receiver, reward);
+                IERC20(_rewardToken).safeTransfer(receiver, _reward);
             }
         }
-        return (_startPosition, rewardTokensSize);
+        return (_startPosition, _rewardTokensSize);
     }
 
     /**
@@ -463,23 +294,25 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
      * @param _rewardToken The reward address.
      * @return unclaimedAmount The calculated rewards.
      */
-    function getUserReward(address _user, address _rewardToken) public view override returns (uint256 unclaimedAmount) {
+    function getUserReward(address _user, address _rewardToken) public view returns (uint256 unclaimedAmount) {
         RewardsInfo storage _rewardInfo = _tokensRewardInfo[_rewardToken];
-
         uint256 perShareAmount = _rewardInfo.amount;
+
         UserInfo storage cInfo = _userContribution[_user];
         uint256 userStakingTokenTotal = cInfo.sharesAmount;
         uint256 perShareClaimedAmount = cInfo.lastClaimedAmountT[_rewardToken];
         uint256 perShareUnclaimedAmount = perShareAmount - perShareClaimedAmount;
 
         // Add precision to consider small rewards
-        unclaimedAmount = (perShareUnclaimedAmount * decimals) / userStakingTokenTotal;
-        unclaimedAmount = unclaimedAmount / decimals;
+        unclaimedAmount = (perShareUnclaimedAmount * 1e18) / userStakingTokenTotal;
+        unclaimedAmount = unclaimedAmount / 1e18;
 
         if (feeConfig.feePercentage > 0) {
             uint256 currentFee = _calculateFee(unclaimedAmount, feeConfig.feePercentage);
             unclaimedAmount -= currentFee;
         }
+
+        if (unclaimedAmount == 0) unclaimedAmount = MIN_REWARD;
     }
 
     /**
@@ -495,6 +328,22 @@ contract BasicVault is IERC4626, FeeConfiguration, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < rewardsSize; i++) {
             _rewards[i] = getUserReward(_user, _rewardTokens[i]);
         }
+    }
+
+    /**
+     * @dev Returns reward tokens addresses.
+     *
+     * @return Reward tokens.
+     */
+    function getRewardTokens() public view returns (address[] memory) {
+        return _rewardTokens;
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl, ERC165) returns (bool) {
+        return interfaceId == type(IERC4626).interfaceId || super.supportsInterface(interfaceId);
     }
 }
 

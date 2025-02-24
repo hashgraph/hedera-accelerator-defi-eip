@@ -18,9 +18,6 @@ contract SliceFactory is ISliceFactory, Ownable, ERC165 {
     // Used salt => deployed Slice
     mapping(string => address) private sliceDeployed;
 
-    // Slice group => deployed slices
-    mapping(bytes32 group => address[] slices) private slicesByGroup;
-
     /**
      * @dev Initializes contract with passed parameters.
      */
@@ -33,19 +30,17 @@ contract SliceFactory is ISliceFactory, Ownable, ERC165 {
      */
     function deploySlice(string calldata salt, SliceDetails calldata sliceDetails) external returns (address slice) {
         require(sliceDeployed[salt] == address(0), "SliceFactory: Slice already deployed");
-        require(sliceDetails.pyth != address(0), "SliceFactory: Invalid Pyth oracle address");
         require(sliceDetails.uniswapRouter != address(0), "SliceFactory: Invalid Uniswap Router address");
         require(sliceDetails.usdc != address(0), "SliceFactory: Invalid USDC address");
-        require(sliceDetails.group != bytes32(0), "SliceFactory: Invalid group");
+        require(bytes(sliceDetails.metadataUri).length != 0, "SliceFactory: Invalid metadata URI");
 
         slice = _deploySlice(salt, sliceDetails);
 
         sliceDeployed[salt] = slice;
-        slicesByGroup[sliceDetails.group].push(slice);
 
         IOwnable(slice).transferOwnership(msg.sender);
 
-        emit SliceDeployed(slice, sliceDetails.pyth, sliceDetails.uniswapRouter, sliceDetails.usdc);
+        emit SliceDeployed(slice, sliceDetails.uniswapRouter, sliceDetails.usdc);
     }
 
     /**
@@ -56,14 +51,11 @@ contract SliceFactory is ISliceFactory, Ownable, ERC165 {
     function _deploySlice(string calldata salt, SliceDetails calldata sliceDetails) private returns (address) {
         bytes memory _code = type(Slice).creationCode;
         bytes memory _constructData = abi.encode(
-            sliceDetails.pyth,
             sliceDetails.uniswapRouter,
             sliceDetails.usdc,
             sliceDetails.name,
             sliceDetails.symbol,
-            sliceDetails.group,
-            sliceDetails.description,
-            sliceDetails.decimals
+            sliceDetails.metadataUri
         );
 
         bytes memory deploymentData = abi.encodePacked(_code, _constructData);
@@ -88,14 +80,6 @@ contract SliceFactory is ISliceFactory, Ownable, ERC165 {
             }
         }
         return addr;
-    }
-
-    /**
-     * @dev Returns set of Slices with provided group.
-     * @inheritdoc ISliceFactory
-     */
-    function getSlicesByGroup(bytes32 group) external view returns (address[] memory) {
-        return slicesByGroup[group];
     }
 
     /**

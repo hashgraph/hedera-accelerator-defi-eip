@@ -51,6 +51,7 @@ contract AutoCompounderFactory is IAutoCompounderFactory, Ownable, ERC165 {
 
         emit AutoCompounderDeployed(
             autoCompounder,
+            autoCompounderDetails.vault,
             autoCompounderDetails.aTokenName,
             autoCompounderDetails.aTokenSymbol
         );

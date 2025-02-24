@@ -3,20 +3,21 @@ pragma solidity 0.8.24;
 
 import {IUniswapV2Router02} from "./interfaces/IUniswapV2Router02.sol";
 
-import {IPyth} from "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
-import {PythStructs} from "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
-import {PythUtils} from "@pythnetwork/pyth-sdk-solidity/PythUtils.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {IERC4626} from "./IERC4626.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+
 import {IAutoCompounder} from "./interfaces/IAutoCompounder.sol";
 import {ISlice} from "./interfaces/ISlice.sol";
-import {ERC20} from "./ERC20.sol";
+import {IRewards} from "./interfaces/IRewards.sol";
 
 /**
  * @title Slice
@@ -25,9 +26,8 @@ import {ERC20} from "./ERC20.sol";
  * The main contract responsibility is to rebalance the asset portfolio (utilising USD prices)
  * and maintain predefined allocation of the stored assets.
  */
-contract Slice is ISlice, ERC20, Ownable {
+contract Slice is ISlice, ERC20, Ownable, ERC165 {
     using SafeERC20 for IERC20;
-    using PythUtils for int64;
 
     // Basis points for calculations with percentages
     uint16 private constant BASIS_POINTS = 10000;
@@ -36,16 +36,10 @@ contract Slice is ISlice, ERC20, Ownable {
     uint8 private constant MAX_TOKENS_AMOUNT = 10;
 
     // Slice group
-    bytes32 private immutable _group;
-
-    // Slice description
-    bytes32 private immutable _description;
+    string private _metadataUri;
 
     // Allocations array for each aToken stored
     Allocation[] private _allocations;
-
-    // Price oracle
-    IPyth private _pyth;
 
     // Uniswap router V2
     IUniswapV2Router02 private _uniswapRouter;
@@ -53,50 +47,45 @@ contract Slice is ISlice, ERC20, Ownable {
     // USDC
     address private _baseToken;
 
+    // Price oracle
+    mapping(address => AggregatorV3Interface) private _priceFeeds;
+
     // Token balances
     mapping(address => uint256) private _balances;
 
     // Rebalance payload struct (used for caching calculation data)
     struct RebalancePayload {
         address aToken; // aToken address
+        address asset; // Underlying asset
         uint256 targetUnderlyingAmount; // Target amount in terms of underlying
         uint256 aTokenTargetAmount; // aToken target amount
         uint256 currentBalance; // Current aToken balance
+        uint256 availableReward; // Available vault reward
     }
 
     /**
      * @dev Initializes contract with passed parameters.
      *
      * @param uniswapRouter_ The address of the Uniswap router.
-     * @param pyth_ The address of the price Oracle.
      * @param baseToken_ The address of the base token.
      * @param name_ The name of the sToken.
      * @param symbol_ The symbol of the sToken.
-     * @param group_ The Slice group.
-     * @param description_ The Slice description.
-     * @param decimals_ The decimals of the sToken.
+     * @param metadataUri_ The Slice metadata URI.
      */
     constructor(
         address uniswapRouter_,
-        address pyth_,
         address baseToken_,
         string memory name_,
         string memory symbol_,
-        bytes32 group_,
-        bytes32 description_,
-        uint8 decimals_
-    ) ERC20(name_, symbol_, decimals_) Ownable(msg.sender) {
+        string memory metadataUri_
+    ) ERC20(name_, symbol_) Ownable(msg.sender) {
         require(uniswapRouter_ != address(0), "Slice: Invalid Uniswap router address");
-        require(pyth_ != address(0), "Slice: Invalid price oralce address");
         require(baseToken_ != address(0), "Slice: Invalid USDC token address");
-        require(group_ != bytes32(0), "Slice: Invalid group");
-        require(description_ != bytes32(0), "Slice: Invalid description");
+        require(bytes(metadataUri_).length != 0, "Slice: Invalid metadata URI");
 
         _uniswapRouter = IUniswapV2Router02(uniswapRouter_);
-        _pyth = IPyth(pyth_);
         _baseToken = baseToken_;
-        _group = group_;
-        _description = description_;
+        _metadataUri = metadataUri_;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -109,21 +98,26 @@ contract Slice is ISlice, ERC20, Ownable {
      */
     function deposit(address aToken, uint256 amount) external returns (uint256 aTokenAmount) {
         require(amount > 0, "Slice: Invalid amount");
-        require(getTokenAllocation(aToken).aToken != address(0), "Slice: Allocation for the token doesn't exist");
+
+        address _asset = getTokenAllocation(aToken).asset;
+
+        require(_asset != address(0), "Slice: Allocation for the token doesn't exist");
+
+        address _sender = msg.sender;
 
         // Transfer underlying token from user to contract
-        IERC20(IERC4626(aToken).asset()).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(_asset).safeTransferFrom(_sender, address(this), amount);
 
         // Deposit to AutoCompounder
-        IERC20(IERC4626(aToken).asset()).approve(aToken, amount);
-        aTokenAmount = IERC4626(aToken).deposit(amount, address(this));
+        IERC20(_asset).approve(aToken, amount);
+        aTokenAmount = IAutoCompounder(aToken).deposit(amount, address(this));
 
         _balances[aToken] += aTokenAmount;
 
         // Mint appropriate sToken amount to sender
-        _mint(msg.sender, aTokenAmount);
+        _mint(_sender, aTokenAmount);
 
-        emit Deposit(aToken, msg.sender, amount);
+        emit Deposit(aToken, _sender, amount);
     }
 
     /**
@@ -133,8 +127,10 @@ contract Slice is ISlice, ERC20, Ownable {
     function withdraw(uint256 sTokenAmount) external returns (uint256[] memory amounts) {
         require(sTokenAmount > 0, "Slice: Invalid amount");
 
+        address _sender = msg.sender;
+
         // Burn sToken
-        _burn(msg.sender, sTokenAmount);
+        _burn(_sender, sTokenAmount);
 
         amounts = new uint256[](_allocations.length);
 
@@ -142,15 +138,15 @@ contract Slice is ISlice, ERC20, Ownable {
         uint256 currentBalance;
 
         // Calculate proportional assets to return
-        uint256 userShare = (sTokenAmount * decimals) / totalSupply();
+        uint256 userShare = (sTokenAmount * decimals()) / totalSupply();
         for (uint256 i = 0; i < _allocations.length; i++) {
             currentAToken = _allocations[i].aToken;
             currentBalance = _balances[currentAToken];
 
-            amounts[i] = (currentBalance * userShare) / decimals;
-            IERC20(currentAToken).safeTransfer(msg.sender, amounts[i]);
+            amounts[i] = (currentBalance * userShare) / decimals();
+            IERC20(currentAToken).safeTransfer(_sender, amounts[i]);
 
-            emit Withdraw(currentAToken, msg.sender, amounts[i]);
+            emit Withdraw(currentAToken, _sender, amounts[i]);
         }
     }
 
@@ -162,23 +158,31 @@ contract Slice is ISlice, ERC20, Ownable {
      * @dev Adds new aToken allocation.
      * @inheritdoc ISlice
      */
-    function addAllocation(address aToken, bytes32 priceId, uint256 percentage) external {
+    function addAllocation(address aToken, address priceFeed, uint16 percentage) external {
         require(aToken != address(0), "Slice: Invalid aToken address");
-        require(priceId != bytes32(0), "Slice: Invalid price id");
+        require(priceFeed != address(0), "Slice: Invalid price feed address");
         require(percentage != 0 && percentage != BASIS_POINTS, "Slice: Invalid allocation percentage");
         require(getTokenAllocation(aToken).aToken == address(0), "Slice: Allocation for the passed token exists");
         require(_allocations.length < MAX_TOKENS_AMOUNT, "Slice: Allocation limit exceeds");
+        require(
+            ERC165Checker.supportsInterface(aToken, type(IAutoCompounder).interfaceId),
+            "Slice: Unsupported interface ID"
+        );
 
-        _allocations.push(Allocation({aToken: aToken, priceId: priceId, targetPercentage: percentage}));
+        // Get underlying asset from Autocompounder
+        address asset = IAutoCompounder(aToken).asset();
 
-        emit AllocationAdded(aToken, priceId, percentage);
+        _allocations.push(Allocation({aToken: aToken, asset: asset, targetPercentage: percentage}));
+        _priceFeeds[asset] = AggregatorV3Interface(priceFeed);
+
+        emit AllocationAdded(aToken, asset, priceFeed, percentage);
     }
 
     /**
      * @dev Sets new aToken allocation percentage.
      * @inheritdoc ISlice
      */
-    function setAllocationPercentage(address aToken, uint256 newPercentage) external {
+    function setAllocationPercentage(address aToken, uint16 newPercentage) external {
         require(aToken != address(0), "Slice: Invalid aToken address");
         require(newPercentage != 0 && newPercentage != BASIS_POINTS, "Slice: Invalid percentage");
         require(
@@ -203,19 +207,16 @@ contract Slice is ISlice, ERC20, Ownable {
      * @dev Generates array of payloads with caching target amounts and balances for each aToken.
      *
      * @return payloads The array of rebalance payloads.
-     * @return aTokenToUnderlyingRate The aToken/Underlying exchange rate.
      */
-    function _generateRebalancePayload()
-        public
-        returns (RebalancePayload[] memory payloads, uint256 aTokenToUnderlyingRate)
-    {
+    function _generateRebalancePayload() internal returns (RebalancePayload[] memory payloads) {
         uint256 totalValue = _getTotalValue();
 
         address aToken;
-        bytes32 priceId;
+        address asset;
         uint256 targetValue;
         uint256 targetUnderlyingAmount;
         uint256 aTokenTargetAmount;
+        uint256 aTokenExcessAmount;
         uint256 withdrawnUnderlyingAmount;
         uint256 aTokenBalance;
 
@@ -223,37 +224,45 @@ contract Slice is ISlice, ERC20, Ownable {
 
         for (uint256 i = 0; i < _allocations.length; i++) {
             aToken = _allocations[i].aToken;
-            priceId = _allocations[i].priceId;
+            asset = _allocations[i].asset;
 
-            (, , uint256 underlyingPrice, uint256 aTokenToUnderlyingRate) = _getTokenValue(aToken, priceId);
+            (, , uint256 underlyingPrice, uint256 aTokenToUnderlyingRate) = _getTokenValue(aToken, asset);
 
+            // Target amount in underlying
             targetValue = (totalValue * _allocations[i].targetPercentage) / BASIS_POINTS; // Target value in USD
-            targetUnderlyingAmount = targetValue / underlyingPrice; // Target amount in underlying
+            targetUnderlyingAmount = (targetValue * (10 ** IERC20Metadata(asset).decimals())) / underlyingPrice; // Target amount in underlying
 
             // Target amount in aToken
-            aTokenTargetAmount = (targetUnderlyingAmount * aTokenToUnderlyingRate) / IERC20Metadata(aToken).decimals();
-            aTokenBalance = IERC20(aToken).balanceOf(address(this));
+            aTokenTargetAmount = targetUnderlyingAmount * aTokenToUnderlyingRate;
+
+            aTokenBalance = _balances[aToken];
 
             if (aTokenBalance > aTokenTargetAmount) {
-                uint256 aTokenExcessAmount = aTokenBalance - aTokenTargetAmount;
+                aTokenExcessAmount = aTokenBalance - aTokenTargetAmount;
 
                 withdrawnUnderlyingAmount = IAutoCompounder(aToken).withdraw(aTokenExcessAmount, address(this));
 
                 // Swap excess underlying to USDC for next 'buy' trades
-                _tradeForToken(IERC4626(aToken).asset(), _baseToken, withdrawnUnderlyingAmount);
+                _tradeForToken(asset, baseToken(), withdrawnUnderlyingAmount);
+
+                _balances[baseToken()] = IERC20(baseToken()).balanceOf(address(this));
 
                 payloads[i] = RebalancePayload({
                     aToken: aToken,
+                    asset: asset,
                     targetUnderlyingAmount: targetUnderlyingAmount,
                     aTokenTargetAmount: aTokenTargetAmount,
-                    currentBalance: aTokenBalance - aTokenExcessAmount
+                    currentBalance: aTokenBalance - aTokenExcessAmount,
+                    availableReward: 0
                 });
             } else {
                 payloads[i] = RebalancePayload({
                     aToken: aToken,
+                    asset: asset,
                     targetUnderlyingAmount: targetUnderlyingAmount,
                     aTokenTargetAmount: aTokenTargetAmount,
-                    currentBalance: aTokenBalance
+                    currentBalance: aTokenBalance,
+                    availableReward: IRewards(IAutoCompounder(aToken).vault()).getUserReward(aToken, baseToken())
                 });
             }
         }
@@ -263,58 +272,64 @@ contract Slice is ISlice, ERC20, Ownable {
      * @dev Makes set of swaps to reach target balances of aTokens from generated payloads.
      */
     function rebalance() external {
-        (RebalancePayload[] memory payloads, uint256 aTokenToUnderlyingRate) = _generateRebalancePayload();
+        RebalancePayload[] memory payloads = _generateRebalancePayload();
 
+        address aToken;
+        address asset;
+        uint256 aTokenTargetAmount;
+        uint256 balance;
+        uint256 availableReward;
+        uint256 difference;
+        uint256 neededUnderlying;
         uint256 withdrawnUnderlyingAmount;
+        uint256 neededUsdcToSwapForUnderlying;
+        uint256 baseTokenBalance;
+        uint256 underlyingBalance;
 
         for (uint256 i = 0; i < payloads.length; i++) {
-            address aToken = payloads[i].aToken;
-            uint256 aTokenTargetAmount = payloads[i].aTokenTargetAmount;
-            uint256 balance = payloads[i].currentBalance;
+            aToken = payloads[i].aToken;
+            asset = payloads[i].asset;
+            aTokenTargetAmount = payloads[i].aTokenTargetAmount;
+            balance = payloads[i].currentBalance;
+            availableReward = payloads[i].availableReward;
 
             if (aTokenTargetAmount == balance) continue;
 
-            aTokenToUnderlyingRate = IAutoCompounder(aToken).exchangeRate(aToken);
+            difference = aTokenTargetAmount - balance;
+            neededUnderlying = difference / IAutoCompounder(aToken).exchangeRate();
 
-            uint256 difference = aTokenTargetAmount - balance;
-            uint256 neededUnderlying = difference / aTokenToUnderlyingRate;
-
-            if (difference > balance) {
-                withdrawnUnderlyingAmount = IAutoCompounder(aToken).withdraw(balance, address(this));
-            } else {
-                withdrawnUnderlyingAmount = IAutoCompounder(aToken).withdraw(difference, address(this));
+            if (availableReward > 0) {
+                if (difference > balance) {
+                    withdrawnUnderlyingAmount = IAutoCompounder(aToken).withdraw(balance, address(this));
+                } else {
+                    withdrawnUnderlyingAmount = IAutoCompounder(aToken).withdraw(difference, address(this));
+                }
             }
 
             // Swap underlying for USDC
-            _tradeForToken(IERC4626(aToken).asset(), _baseToken, withdrawnUnderlyingAmount);
+            _tradeForToken(asset, baseToken(), withdrawnUnderlyingAmount);
 
-            uint256 neededUsdcToSwapForUnderlying = _getQuoteAmount(
-                neededUnderlying,
-                _baseToken,
-                IERC4626(aToken).asset()
+            neededUsdcToSwapForUnderlying = _getQuoteAmount(
+                neededUnderlying + withdrawnUnderlyingAmount,
+                baseToken(),
+                asset
             );
 
-            uint256 baseTokenBalance = IERC20(_baseToken).balanceOf(address(this));
+            baseTokenBalance = IERC20(baseToken()).balanceOf(address(this));
 
             if (baseTokenBalance < neededUsdcToSwapForUnderlying) {
                 // Swap whole USDC balance for underlying
-                _tradeForToken(_baseToken, IERC4626(aToken).asset(), baseTokenBalance);
-
-                uint256 underlyingBalance = IERC20(IERC4626(aToken).asset()).balanceOf(address(this));
-
-                // Reinvest to get aToken
-                IERC20(IERC4626(aToken).asset()).approve(aToken, underlyingBalance);
-                _balances[aToken] += IERC4626(aToken).deposit(underlyingBalance, address(this));
+                _tradeForToken(_baseToken, asset, baseTokenBalance);
             } else {
                 // Swap USDC for aToken equivalent in underlying token
-                _tradeForToken(_baseToken, IERC4626(aToken).asset(), neededUsdcToSwapForUnderlying);
-
-                uint256 underlyingBalance = IERC20(IERC4626(aToken).asset()).balanceOf(address(this));
-
-                // Reinvest to get aToken
-                IERC20(IERC4626(aToken).asset()).approve(aToken, underlyingBalance);
-                _balances[aToken] += IERC4626(aToken).deposit(underlyingBalance, address(this));
+                _tradeForToken(_baseToken, asset, neededUsdcToSwapForUnderlying);
             }
+
+            underlyingBalance = IERC20(asset).balanceOf(address(this));
+
+            // Reinvest to get aToken
+            IERC20(asset).approve(aToken, underlyingBalance);
+            _balances[aToken] += IAutoCompounder(aToken).deposit(underlyingBalance, address(this));
         }
     }
 
@@ -327,7 +342,7 @@ contract Slice is ISlice, ERC20, Ownable {
      */
     function _getTotalValue() internal view returns (uint256 totalValue) {
         for (uint256 i = 0; i < _allocations.length; i++) {
-            (uint256 currentValue, , , ) = _getTokenValue(_allocations[i].aToken, _allocations[i].priceId);
+            (uint256 currentValue, , , ) = _getTokenValue(_allocations[i].aToken, _allocations[i].asset);
             totalValue += currentValue;
         }
     }
@@ -335,26 +350,26 @@ contract Slice is ISlice, ERC20, Ownable {
     /**
      * @dev Gets the USD value of a token held in the contract.
      *
-     * @param token The aToken address.
-     * @param priceId The price ID of related underlying.
+     * @param aToken The aToken address.
+     * @param asset The underlying asset address.
      */
     function _getTokenValue(
-        address token,
-        bytes32 priceId
+        address aToken,
+        address asset
     )
         internal
         view
         returns (uint256 currentValue, uint256 underlyingValue, uint256 underlyingPrice, uint256 aTokenToUnderlyingRate)
     {
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        aTokenToUnderlyingRate = IAutoCompounder(token).exchangeRate(token);
-        underlyingPrice = _getPrice(IAutoCompounder(token).asset(), priceId);
+        uint256 balance = _balances[aToken];
+        aTokenToUnderlyingRate = IAutoCompounder(aToken).exchangeRate();
+        underlyingPrice = uint256(getChainlinkDataFeedLatestAnswer(asset));
 
         // Get Underlying value in aToken
-        underlyingValue = (balance * aTokenToUnderlyingRate);
+        underlyingValue = balance * aTokenToUnderlyingRate;
 
         // Get underlying value in USD
-        currentValue = (underlyingValue * underlyingPrice) / IERC20Metadata(token).decimals();
+        currentValue = (underlyingValue * underlyingPrice) / (10 ** IERC20Metadata(aToken).decimals());
     }
 
     /**
@@ -399,26 +414,20 @@ contract Slice is ISlice, ERC20, Ownable {
     /*///////////////////////////////////////////////////////////////
                          PRICE HOOKS LOGIC
     //////////////////////////////////////////////////////////////*/
-    /**
-     * @dev Fetches the token price and calculates one dollar in token.
-     *
-     * @param token The token address.
-     * @param priceId The price ID in terms of Pyth oracle.
-     */
-    function _getPrice(address token, bytes32 priceId) internal view returns (uint256) {
-        PythStructs.Price memory price = _pyth.getPrice(priceId);
-        price.price.convertToUint(price.expo, IERC20Metadata(token).decimals());
-        return 1 * 10e18;
-    }
 
     /**
-     * @dev Updates oracle price.
-     *
-     * @param pythPriceUpdate The pyth price update data.
+     * @notice Returns the latest price data from the Chainlink feed
+     * @return The latest answer from the Chainlink data feed
      */
-    function update(bytes[] calldata pythPriceUpdate) public payable {
-        uint updateFee = _pyth.getUpdateFee(pythPriceUpdate);
-        _pyth.updatePriceFeeds{value: updateFee}(pythPriceUpdate);
+    function getChainlinkDataFeedLatestAnswer(address token) public view returns (int) {
+        (
+            ,
+            /* uint80 roundID */ int answer /* uint startedAt */ /* uint timeStamp */ /* uint80 answeredInRound */,
+            ,
+            ,
+
+        ) = _priceFeeds[token].latestRoundData();
+        return answer;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -443,10 +452,10 @@ contract Slice is ISlice, ERC20, Ownable {
     }
 
     /**
-     * @dev Returns the Pyth oracle address.
+     * @dev Returns the price oracle address for provided token.
      */
-    function pyth() public view returns (address) {
-        return address(_pyth);
+    function priceFeed(address token) public view returns (address) {
+        return address(_priceFeeds[token]);
     }
 
     /**
@@ -464,16 +473,16 @@ contract Slice is ISlice, ERC20, Ownable {
     }
 
     /**
-     * @dev Returns the Slice description.
+     * @dev Returns the Slice metadata URI.
      */
-    function description() external view returns (bytes32) {
-        return _description;
+    function metadataUri() external view returns (string memory) {
+        return _metadataUri;
     }
 
     /**
-     * @dev Returns the Slice group.
+     * @dev See {IERC165-supportsInterface}.
      */
-    function group() external view returns (bytes32) {
-        return _group;
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(ISlice).interfaceId || super.supportsInterface(interfaceId);
     }
 }

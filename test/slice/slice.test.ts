@@ -6,62 +6,12 @@ import { VaultToken, Slice, BasicVault, AutoCompounder } from "../../typechain-t
 import {
     usdcAddress,
     uniswapRouterAddress,
-    pythOracleAddress,
-    pythUtilsAddress
+    chainlinkAggregatorMockAddress
 } from "../../constants";
 
-async function createPriceFeedData(
-    id: any,
-    price: number,
-    conf: number,
-    expo: number,
-    publishTime: number,
-    emaPrice: number,
-    emaConf: number,
-    emaExpo: number,
-    emaPublishTime: number,
-    prevPublishTime: number
-): Promise<string | null> {
-    const types = [
-        "bytes32",                   // id
-        "int64",                     // price.price
-        "uint64",                    // price.conf
-        "int32",                     // price.expo
-        "uint64",                    // price.publishTime
-        "int64",                     // emaPrice.price
-        "uint64",                    // emaPrice.conf
-        "int32",                     // emaPrice.expo
-        "uint64",                    // emaPrice.publishTime
-        "uint64"                     // prevPublishTime
-    ];
-
-    const values = [
-        id,             // id
-        price,          // price.price
-        conf,           // price.conf
-        expo,           // price.expo
-        publishTime,    // price.publishTime
-        emaPrice,       // emaPrice.price
-        emaConf,        // emaPrice.conf
-        emaExpo,        // emaPrice.expo
-        emaPublishTime, // emaPrice.publishTime
-        prevPublishTime // prevPublishTime
-    ];
-
-    return ethers.AbiCoder.defaultAbiCoder().encode(types, values);
-}
-
 // constants
-const priceIds = [
-    "0x1111111111111111111111111111111111111111111111111111111111111111",
-    "0x2222222222222222222222222222222222222222222222222222222222222222",
-];
-
-const groupName = "Stadiums";
 const sTokenPayload = "sToken";
-
-const group = ethers.zeroPadBytes(ethers.toUtf8Bytes(groupName), 32);
-const description = ethers.zeroPadBytes(ethers.toUtf8Bytes(sTokenPayload), 32)
+const metadataUri = "ipfs://bafybeibnsoufr2renqzsh347nrx54wcubt5lgkeivez63xvivplfwhtpym/m";
 
 // Zero fee
 const feeConfig = {
@@ -107,7 +57,7 @@ describe("Slice", function () {
         const Vault = await ethers.getContractFactory("BasicVault");
 
         const vault1 = await Vault.deploy(
-            stakingToken1,
+            stakingToken1.target,
             "TST",
             "TST",
             feeConfig,
@@ -150,20 +100,13 @@ describe("Slice", function () {
         // await stakingToken.mint(testAccount.address, ethers.parseUnits("500000000", 18));
 
         // Slice
-        const Slice = await ethers.getContractFactory("Slice", {
-            libraries: {
-                PythUtils: pythUtilsAddress,
-            },
-        });
+        const Slice = await ethers.getContractFactory("Slice");
         const slice = await Slice.deploy(
             uniswapRouterAddress,   // Uniswap router V2
-            pythOracleAddress,      // Price oracle
             rewardToken.target,     // BaseToken TODO: Change to real USDC
             sTokenPayload,          // sToken name
             sTokenPayload,          // sToken symbol
-            group,                  // Slice group
-            description,            // Slice description
-            18                      // sToken decimals
+            metadataUri,            // Slice metadata URI
         ) as Slice;
         await slice.waitForDeployment();
 
@@ -182,7 +125,7 @@ describe("Slice", function () {
     }
 
     describe("rebalance", function () {
-        it("Should distribute tokens close to the provided allocation Autocompounders", async function () {
+        it.only("Should distribute tokens close to the provided allocation Autocompounders", async function () {
             const {
                 slice,
                 owner,
@@ -236,12 +179,12 @@ describe("Slice", function () {
             // Add tracking tokens
             await slice.addAllocation(
                 autoCompounder1.target,
-                priceIds[0],
+                chainlinkAggregatorMockAddress,
                 allocationPercentage1
             );
             await slice.addAllocation(
                 autoCompounder2.target,
-                priceIds[1],
+                chainlinkAggregatorMockAddress,
                 allocationPercentage2
             );
 
@@ -302,7 +245,7 @@ describe("Slice", function () {
             // Add tracking tokens
             await slice.addAllocation(
                 autoCompounder1.target,
-                priceIds[0],
+                chainlinkAggregatorMockAddress,
                 allocationPercentage1
             );
 
@@ -317,7 +260,7 @@ describe("Slice", function () {
             ).to.emit(slice, "Deposit")
                 .withArgs(autoCompounder1, owner.address, amountToDeposit);
 
-            const exchangeRate = await autoCompounder1.exchangeRate(vault1.target);
+            const exchangeRate = await autoCompounder1.exchangeRate();
 
             // Check user received sTokens
             await expect(
@@ -350,7 +293,7 @@ describe("Slice", function () {
     });
 
     describe("withdraw", function () {
-        it.only("Should withdraw", async function () {
+        it("Should withdraw", async function () {
             const {
                 slice,
                 owner,
@@ -364,7 +307,7 @@ describe("Slice", function () {
             // Add tracking tokens
             await slice.addAllocation(
                 autoCompounder1.target,
-                priceIds[0],
+                chainlinkAggregatorMockAddress,
                 allocationPercentage1
             );
 
@@ -401,7 +344,7 @@ describe("Slice", function () {
             // Add tracking tokens
             await slice.addAllocation(
                 autoCompounder1.target,
-                priceIds[0],
+                chainlinkAggregatorMockAddress,
                 allocationPercentage1
             );
 
@@ -417,13 +360,12 @@ describe("Slice", function () {
 
     describe("addAllocation", function () {
         it("Should add token allocation", async function () {
-            const { slice, owner, vault1 } = await deployFixture();
+            const { slice, owner, autoCompounder1, stakingToken1 } = await deployFixture();
             const allocationPercentage = 4000;
-            const token = await vault1.share();
 
             const tx = await slice.addAllocation(
-                token,
-                priceIds[0],
+                autoCompounder1.target,
+                chainlinkAggregatorMockAddress,
                 allocationPercentage,
                 { from: owner.address, gasLimit: 3000000 }
             );
@@ -433,7 +375,7 @@ describe("Slice", function () {
             await expect(
                 tx
             ).to.emit(slice, "AllocationAdded")
-                .withArgs(token, priceIds[0], allocationPercentage);
+                .withArgs(autoCompounder1.target, stakingToken1.target, chainlinkAggregatorMockAddress, allocationPercentage);
         });
 
         it("Should revert if zero token address", async function () {
@@ -443,7 +385,7 @@ describe("Slice", function () {
             await expect(
                 slice.addAllocation(
                     ZeroAddress,
-                    priceIds[0],
+                    chainlinkAggregatorMockAddress,
                     allocationPercentage,
                 )
             ).to.be.revertedWith("Slice: Invalid aToken address");
@@ -456,10 +398,10 @@ describe("Slice", function () {
             await expect(
                 slice.addAllocation(
                     autoCompounder1.target,
-                    ZeroHash,
+                    ZeroAddress,
                     allocationPercentage,
                 )
-            ).to.be.revertedWith("Slice: Invalid price id");
+            ).to.be.revertedWith("Slice: Invalid price feed address");
         });
 
         it("Should revert if invalid percentage", async function () {
@@ -469,7 +411,7 @@ describe("Slice", function () {
             await expect(
                 slice.addAllocation(
                     autoCompounder1.target,
-                    priceIds[0],
+                    chainlinkAggregatorMockAddress,
                     allocationPercentage,
                 )
             ).to.be.revertedWith("Slice: Invalid allocation percentage");
@@ -481,7 +423,7 @@ describe("Slice", function () {
 
             const tx = await slice.addAllocation(
                 autoCompounder1.target,
-                priceIds[0],
+                chainlinkAggregatorMockAddress,
                 allocationPercentage,
                 { from: owner.address, gasLimit: 3000000 }
             );
@@ -489,7 +431,7 @@ describe("Slice", function () {
             await expect(
                 slice.addAllocation(
                     autoCompounder1.target,
-                    priceIds[0],
+                    chainlinkAggregatorMockAddress,
                     allocationPercentage,
                 )
             ).to.be.revertedWith("Slice: Allocation for the passed token exists");
@@ -504,7 +446,7 @@ describe("Slice", function () {
 
             const tx = await slice.addAllocation(
                 autoCompounder1.target,
-                priceIds[0],
+                chainlinkAggregatorMockAddress,
                 allocationPercentage,
                 { from: owner.address, gasLimit: 3000000 }
             );

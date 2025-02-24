@@ -6,21 +6,25 @@ import {ERC20} from "./ERC20.sol";
 import {FixedPointMathLib} from "./FixedPointMathLib.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+
 import {IUniswapV2Router02} from "./interfaces/IUniswapV2Router02.sol";
 import {IAutoCompounder} from "./interfaces/IAutoCompounder.sol";
-import {IERC4626} from "./IERC4626.sol";
-
-import "hardhat/console.sol";
+import {IRewards} from "./interfaces/IRewards.sol";
 
 /**
  * @title AutoCompounder
  *
  * The contract represents a simple AutoCompounder, that allows to reinvest vault rewards.
  */
-contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
+contract AutoCompounder is IAutoCompounder, ERC20, Ownable, ERC165 {
     using SafeERC20 for IERC20;
     using FixedPointMathLib for uint256;
     using Bits for uint256;
@@ -62,6 +66,10 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
         require(uniswapV2Router_ != address(0), "AutoCompounder: Invalid Uniswap Router address");
         require(vault_ != address(0), "AutoCompounder: Invalid Vault address");
         require(usdc_ != address(0), "AutoCompounder: Invalid USDC token address");
+        require(
+            ERC165Checker.supportsInterface(vault_, type(IERC4626).interfaceId),
+            "AutoCompounder: Unsupported vault interface ID"
+        );
 
         _uniswapV2Router = IUniswapV2Router02(uniswapV2Router_);
         _underlying = IERC4626(vault_).asset();
@@ -85,7 +93,7 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
         require(receiver != address(0), "AutoCompounder: Invalid receiver address");
 
         // Calculate aToken amount to mint using exchange rate
-        amountToMint = assets / exchangeRate(vault());
+        amountToMint = assets / exchangeRate();
 
         IERC20(asset()).safeTransferFrom(msg.sender, address(this), assets);
 
@@ -108,13 +116,13 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
         require(receiver != address(0), "AutoCompounder: Invalid receiver address");
 
         // Calculate underlying amount to withdraw using exchange rate
-        underlyingAmount = aTokenAmount * exchangeRate(vault());
+        underlyingAmount = aTokenAmount * exchangeRate();
 
         // Burn aToken
         _burn(msg.sender, aTokenAmount);
 
         // Withdraw underlying with rewards
-        IERC20(_vault.share()).approve(vault(), underlyingAmount);
+        _vault.approve(vault(), underlyingAmount);
         _vault.withdraw(underlyingAmount, receiver, address(this));
 
         emit Withdraw(msg.sender, aTokenAmount, underlyingAmount);
@@ -126,11 +134,11 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
      */
     function claim() external {
         // Check if reward is available
-        uint256 reward = _vault.getUserReward(address(this), usdc());
+        uint256 reward = IRewards(vault()).getUserReward(address(this), usdc());
 
         if (reward != 0) {
             // Claim reward
-            _vault.claimAllReward(0, address(this));
+            IRewards(vault()).claimAllReward(0, address(this));
 
             // Swap reward for underlying
             IERC20(usdc()).approve(uniswapV2Router(), reward);
@@ -156,25 +164,17 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
      * @dev Returns the exchange rate for token.
      * @inheritdoc IAutoCompounder
      */
-    function exchangeRate(address token) public view override returns (uint256 exchangeRate) {
+    function exchangeRate() public view override returns (uint256) {
         uint256 vTotalSupply = _vault.totalSupply();
         uint256 aTotalSupply = totalSupply();
 
-        if (token == address(_vault)) {
-            exchangeRate = aTotalSupply == 0 ? 1 : aTotalSupply / vTotalSupply;
-        } else {
-            uint256 vTokenToUnderlyingRate = _vault.exchangeRate();
-
-            uint256 aTokenTovTokenRate = aTotalSupply == 0 ? 1 : aTotalSupply / vTotalSupply;
-
-            exchangeRate = aTokenTovTokenRate * vTokenToUnderlyingRate;
-        }
+        return aTotalSupply == 0 ? 1 : aTotalSupply / vTotalSupply;
     }
 
     /**
      * @dev Returns the underlying asset address.
      */
-    function asset() public view returns (address) {
+    function asset() public view override returns (address) {
         return _underlying;
     }
 
@@ -195,8 +195,15 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable {
     /**
      * @dev Returns the corresponding Vault address.
      */
-    function vault() public view returns (address) {
+    function vault() public view override returns (address) {
         return address(_vault);
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IAutoCompounder).interfaceId || super.supportsInterface(interfaceId);
     }
 }
 

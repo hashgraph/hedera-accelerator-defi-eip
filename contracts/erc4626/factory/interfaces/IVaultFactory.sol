@@ -15,10 +15,11 @@ interface IVaultFactory {
      * @dev Emitted after Vault deployment.
      *
      * @param vault The address of the deployed Vault.
+     * @param asset The address of the related underlying asset.
      * @param name The name of the deployed Vault.
      * @param symbol The symbol of the deployed Vault.
      */
-    event VaultDeployed(address indexed vault, string name, string symbol);
+    event VaultDeployed(address indexed vault, address indexed asset, string name, string symbol);
 
     // Vault details struct
     struct VaultDetails {

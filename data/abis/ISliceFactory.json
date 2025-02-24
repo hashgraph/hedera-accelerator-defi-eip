@@ -13,12 +13,6 @@
           "type": "address"
         },
         {
-          "indexed": true,
-          "internalType": "address",
-          "name": "pyth",
-          "type": "address"
-        },
-        {
           "indexed": false,
           "internalType": "address",
           "name": "uniswapRouter",
@@ -45,11 +39,6 @@
           "components": [
             {
               "internalType": "address",
-              "name": "pyth",
-              "type": "address"
-            },
-            {
-              "internalType": "address",
               "name": "uniswapRouter",
               "type": "address"
             },
@@ -69,19 +58,9 @@
               "type": "string"
             },
             {
-              "internalType": "bytes32",
-              "name": "group",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "bytes32",
-              "name": "description",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "uint8",
-              "name": "decimals",
-              "type": "uint8"
+              "internalType": "string",
+              "name": "metadataUri",
+              "type": "string"
             }
           ],
           "internalType": "struct ISliceFactory.SliceDetails",
@@ -98,25 +77,6 @@
         }
       ],
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "group",
-          "type": "bytes32"
-        }
-      ],
-      "name": "getSlicesByGroup",
-      "outputs": [
-        {
-          "internalType": "address[]",
-          "name": "",
-          "type": "address[]"
-        }
-      ],
-      "stateMutability": "view",
       "type": "function"
     }
   ],

@@ -49,7 +49,12 @@ contract VaultFactory is Ownable, IVaultFactory, ERC165 {
 
         IOwnable(vault).transferOwnership(msg.sender);
 
-        emit VaultDeployed(vault, vaultDetails.shareTokenName, vaultDetails.shareTokenSymbol);
+        emit VaultDeployed(
+            vault,
+            vaultDetails.stakingToken,
+            vaultDetails.shareTokenName,
+            vaultDetails.shareTokenSymbol
+        );
     }
 
     /**

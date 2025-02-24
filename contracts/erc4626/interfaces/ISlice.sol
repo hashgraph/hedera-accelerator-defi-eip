@@ -28,10 +28,16 @@ interface ISlice {
      * @dev Emitted after the adding new allocation.
      *
      * @param token The address of the added token.
-     * @param priceId The oracle price ID.
+     * @param asset The address of the underlying asset.
+     * @param priceFeed The address of the AggregatorV3 contract.
      * @param allocationPercentage The allocation percentage to maintain.
      */
-    event AllocationAdded(address indexed token, bytes32 priceId, uint256 allocationPercentage);
+    event AllocationAdded(
+        address indexed token,
+        address indexed asset,
+        address indexed priceFeed,
+        uint16 allocationPercentage
+    );
     /**
      * @notice AllocationPercentageChanged event.
      * @dev Emitted after the changing allocation percentage.
@@ -39,13 +45,13 @@ interface ISlice {
      * @param token The address of the token.
      * @param allocationPercentage The new allocation percentage to maintain.
      */
-    event AllocationPercentageChanged(address indexed token, uint256 allocationPercentage);
+    event AllocationPercentageChanged(address indexed token, uint16 allocationPercentage);
 
     // Allocation struct
     struct Allocation {
         address aToken; // aToken address
-        bytes32 priceId; // Oralce price ID
-        uint256 targetPercentage; // Target percentage (e.g., 3000 for 30%)
+        address asset; // Underlying asset
+        uint16 targetPercentage; // Target percentage (e.g., 3000 for 30%)
     }
 
     /**
@@ -74,10 +80,10 @@ interface ISlice {
      * @dev Add token to the system.
      *
      * @param aToken The aToken address.
-     * @param priceId The price ID in terms of price oracle.
+     * @param priceFeed The address of the AggregatorV3 contract.
      * @param percentage The target allocation percentage.
      */
-    function addAllocation(address aToken, bytes32 priceId, uint256 percentage) external;
+    function addAllocation(address aToken, address priceFeed, uint16 percentage) external;
 
     /**
      * @dev Sets new aToken allocation percentage.
@@ -85,7 +91,7 @@ interface ISlice {
      * @param aToken The aToken address.
      * @param percentage The new allocation percentage to maintain.
      */
-    function setAllocationPercentage(address aToken, uint256 percentage) external;
+    function setAllocationPercentage(address aToken, uint16 percentage) external;
 
     /**
      * @dev Returns token allocation for the passed aToken address.

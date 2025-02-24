@@ -4,6 +4,8 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {Slice} from "../../contracts/erc4626/Slice.sol";
 
 import {AutoCompounder} from "../../contracts/erc4626/AutoCompounder.sol";
@@ -16,13 +18,12 @@ import {FeeConfiguration} from "../../contracts/common/FeeConfiguration.sol";
 import {IUniswapV2Router02} from "../../contracts/erc4626/interfaces/IUniswapV2Router02.sol";
 
 contract SliceTest is Test {
+    string internal constant metadataURI = "ipfs://bafybeibnsoufr2renqzsh347nrx54wcubt5lgkeivez63xvivplfwhtpym/m";
+
     address internal owner = 0xf5d7D351A5511a13de1f73d4882f88032A490a27;
 
     address internal uniswapRouter = 0x815Bf1AD6d2B1c0E393C033227df0a88C48f83Be;
-    address internal pyth = 0x330C40b17607572cf113973b8748fD1aEd742943;
-
-    bytes32 internal constant priceId1 = 0x1111111111111111111111111111111111111111111111111111111111111111;
-    bytes32 internal constant priceId2 = 0x2222222222222222222222222222222222222222222222222222222222222222;
+    address internal priceFeed = 0x269501f5674BeE3E8fef90669d3faa17021344d0;
 
     Slice slice;
 
@@ -57,20 +58,17 @@ contract SliceTest is Test {
         });
 
         vm.prank(owner);
-        vToken1 = new BasicVault(underlying1, "TST", "TST", zeroFeeConfig, owner, owner);
+        vToken1 = new BasicVault(IERC20(address(underlying1)), "TST", "TST", zeroFeeConfig, owner, owner);
         vm.prank(owner);
-        vToken2 = new BasicVault(underlying2, "TST", "TST", zeroFeeConfig, owner, owner);
+        vToken2 = new BasicVault(IERC20(address(underlying2)), "TST", "TST", zeroFeeConfig, owner, owner);
 
         vm.prank(owner);
         aToken1 = new AutoCompounder(uniswapRouter, address(vToken1), address(rewardToken), "TST", "TST");
         vm.prank(owner);
         aToken2 = new AutoCompounder(uniswapRouter, address(vToken2), address(rewardToken), "TST", "TST");
 
-        bytes32 group = "Stadiums";
-        bytes32 description = "sToken";
-
         vm.prank(owner);
-        slice = new Slice(uniswapRouter, pyth, address(rewardToken), "sToken", "sToken", group, description, 18);
+        slice = new Slice(uniswapRouter, address(rewardToken), "sToken", "sToken", metadataURI);
     }
 
     function testRebalance() public {
@@ -117,14 +115,14 @@ contract SliceTest is Test {
         vm.prank(owner);
         underlying2.approve(address(slice), amountToDeposit);
 
-        uint256 allocationPercentage1 = 4000;
-        uint256 allocationPercentage2 = 6000;
+        uint16 allocationPercentage1 = 4000;
+        uint16 allocationPercentage2 = 6000;
 
         // Add allocation percentages
         vm.prank(owner);
-        slice.addAllocation(address(aToken1), priceId1, allocationPercentage1);
+        slice.addAllocation(address(aToken1), priceFeed, allocationPercentage1);
         vm.prank(owner);
-        slice.addAllocation(address(aToken2), priceId2, allocationPercentage2);
+        slice.addAllocation(address(aToken2), priceFeed, allocationPercentage2);
 
         // Deposit to Autocompounders
         vm.prank(owner);

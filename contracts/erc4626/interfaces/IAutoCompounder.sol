@@ -68,14 +68,17 @@ interface IAutoCompounder {
 
     /**
      * @dev Returns the exchange rate for token.
-     *
-     * @param token The token to get exchange rate for.
      * @return exchangeRate The calculated exchange rate.
      */
-    function exchangeRate(address token) external view returns (uint256 exchangeRate);
+    function exchangeRate() external view returns (uint256 exchangeRate);
 
     /**
      * @dev Returns underlying asset address.
      */
     function asset() external view returns (address);
+
+    /**
+     * @dev Returns related vault address.
+     */
+    function vault() external view returns (address);
 }

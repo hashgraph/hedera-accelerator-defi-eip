@@ -6,9 +6,7 @@ import { BytesLike, ZeroAddress } from "ethers";
 
 import {
   usdcAddress,
-  uniswapRouterAddress,
-  pythOracleAddress,
-  pythUtilsAddress
+  uniswapRouterAddress
 } from "../constants";
 
 dotenv.config();
@@ -163,11 +161,7 @@ async function main() {
 
   console.log("AutoCompounder deployed with address: ", await autoCompounder.getAddress());
 
-  const SliceFactory = await ethers.getContractFactory("SliceFactory", {
-    libraries: {
-      PythUtils: pythUtilsAddress,
-    },
-  });
+  const SliceFactory = await ethers.getContractFactory("SliceFactory");
   const sliceFactory = await SliceFactory.deploy(
     { from: deployer.address, gasLimit: 4000000 }
   );
