@@ -8,6 +8,7 @@ import {Building} from "./Building.sol";
 import {IERC721Metadata} from "../erc721/interface/IERC721Metadata.sol";
 import {IdentityGateway} from "../onchainid/gateway/Gateway.sol";
 import {BuildingToken} from "./library/BuildingToken.sol";
+import {BuildingGovernance} from "./governance/BuildingGovernance.sol";
 
 /**
  * @title BuildingFactory
@@ -33,6 +34,7 @@ contract BuildingFactory is OwnableUpgradeable  {
         string tokenURI; // NFT metadatada location
         address identity; // building's OnchainID identity address
         address erc3643Token; // TRex token
+        address governance;
     }
 
     //keccak256(abi.encode(uint256(keccak256("hashgraph.buildings.BuildingFactory")) - 1)) & ~bytes32(uint256(0xff));
@@ -47,6 +49,7 @@ contract BuildingFactory is OwnableUpgradeable  {
     event NewAuditRegistry(address addr);
     event NewBuilding(address addr);
     event NewERC3643Token(address building, address token);
+    event NewGovernorance(address addr);
 
     /**
      * initialize used for upgradable contract
@@ -113,7 +116,8 @@ contract BuildingFactory is OwnableUpgradeable  {
             tokenId,
             tokenURI,
             identity,
-            address(0) // ERC3643 token lazy deploy
+            address(0), // ERC3643 token lazy deploy
+            address(0) // Governor lazy deploy
         );
 
         $.buildingsList.push($.buildingDetails[address(buildingProxy)]);        
@@ -155,5 +159,27 @@ contract BuildingFactory is OwnableUpgradeable  {
 
         emit NewERC3643Token(buildingAddress, token);
     }
-    
+
+    /**
+     * Create new Governance contract
+     * @param buildingAddress address of the building
+     */
+    function newGovernance(address buildingAddress) external {
+        BuildingFactoryStorage storage $ = _getBuildingFactoryStorage();
+        require(buildingAddress != address(0) && $.buildingDetails[buildingAddress].addr != address(0), "BuildingFactory: Invalid building address");
+        require($.buildingDetails[buildingAddress].erc3643Token != address(0), "BuildingFactory: token not created for building");
+
+        BuildingGovernance governance = new BuildingGovernance();
+
+        governance.initialize(
+            $.buildingDetails[buildingAddress].erc3643Token,
+            "Building Governance",
+            msg.sender,
+            address(0) // todo: traasury address
+        );
+
+        $.buildingDetails[buildingAddress].governance = address(governance);
+
+        emit NewGovernorance(address(governance));
+    }    
 }
