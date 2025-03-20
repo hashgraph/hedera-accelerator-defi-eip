@@ -12,8 +12,8 @@ abstract contract BuildingBase is IERC721Receiver, Initializable, OwnableUpgrade
     /**
      * Proxy Contract initialized
      */
-    function __Building_init () internal onlyInitializing {
-        __Ownable_init(_msgSender());
+    function __Building_init (address initialOwner) internal onlyInitializing {
+        __Ownable_init(initialOwner);
     }
 
     /**

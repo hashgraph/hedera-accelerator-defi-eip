@@ -2,6 +2,7 @@ import { Contract, LogDescription, } from 'ethers';
 import { expect, ethers, upgrades } from '../setup';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import * as ERC721MetadataABI from '../../data/abis/ERC721Metadata.json';
+import { usdcAddress } from '../../constants';
 
 async function deployFixture() {
   const [owner, notOwner] = await ethers.getSigners();
@@ -41,6 +42,22 @@ async function deployFixture() {
   await buildingBeacon.waitForDeployment();
   const buildingBeaconAddress = await buildingBeacon.getAddress();
 
+  // Beacon Upgradable Pattern for Treasury
+  const treasuryImplementation = await ethers.deployContract('Treasury');
+  const treasuryImplementationAddress = await treasuryImplementation.getAddress();
+  const treasuryBeaconFactory = await ethers.getContractFactory('TreasuryBeacon');
+  const treasuryBeacon = await treasuryBeaconFactory.deploy(treasuryImplementationAddress)
+  await treasuryBeacon.waitForDeployment();
+  const treasuryBeaconAddress = await treasuryBeacon.getAddress();
+
+  // Beacon Upgradable Pattern for Treasury
+  const governanceImplementation = await ethers.deployContract('BuildingGovernance');
+  const governanceImplementationAddress = await governanceImplementation.getAddress();
+  const governanceBeaconFactory = await ethers.getContractFactory('BuildingGovernanceBeacon');
+  const governanceBeacon = await governanceBeaconFactory.deploy(governanceImplementationAddress)
+  await governanceBeacon.waitForDeployment();
+  const governanceBeaconAddress = await governanceBeacon.getAddress();
+
   // Deploy BuildingFactory
   const buildingFactoryFactory = await ethers.getContractFactory('BuildingFactory', owner);
   const buildingFactoryBeacon = await upgrades.deployBeacon(buildingFactoryFactory);
@@ -79,6 +96,9 @@ async function deployFixture() {
 
   const trexGatewayAddress = await trexGateway.getAddress();
   const trexFactoryAddress = await trexFactory.getAddress();
+  
+  const vaultFactory = await ethers.deployContract('VaultFactory');
+  const vaultFactoryAddress = await vaultFactory.getAddress();
 
   // ------------------------------------------------------
 
@@ -92,9 +112,13 @@ async function deployFixture() {
       nftCollectionAddress, 
       uniswapRouterAddress, 
       uniswapFactoryAddress,
-      buildingBeaconAddress,
       identityGatewayAddress,
       trexGatewayAddress,
+      usdcAddress,
+      buildingBeaconAddress,
+      vaultFactoryAddress,
+      treasuryBeaconAddress,
+      governanceBeaconAddress
     ],
     { 
       initializer: 'initialize'
@@ -123,14 +147,16 @@ async function deployFixture() {
     identityFactory,
     identityGateway,
     trexFactoryAddress,
-    trexGatewayAddress
+    trexGatewayAddress,
+    vaultFactory,
+    vaultFactoryAddress
   }
 }
 
 // get ERC721Metadata NFT collection deployed on contract deployment
 async function getDeployedBuilding(buildingFactory: Contract, blockNumber: number) {
   // Decode the event using queryFilter
-  const logs = await buildingFactory.queryFilter(buildingFactory.filters['NewBuilding(address)'], blockNumber, blockNumber);
+  const logs = await buildingFactory.queryFilter(buildingFactory.filters['NewBuilding(address, address)'], blockNumber, blockNumber);
 
   // Ensure one event was emitted
   expect(logs.length).to.equal(1);
@@ -142,6 +168,48 @@ async function getDeployedBuilding(buildingFactory: Contract, blockNumber: numbe
   // Extract and verify the emitted address
   const newBuildingAddress = decodedEvent.args[0]; // Assuming the address is the first argument
   return await ethers.getContractAt('Building', newBuildingAddress);
+}
+
+async function getDeployedToken(buildingFactory: Contract, blockNumber: number) {
+  // Decode the event using queryFilter
+  const logs = await buildingFactory.queryFilter(buildingFactory.filters['NewERC3643Token(address, address, address)'], blockNumber, blockNumber);
+
+  // Ensure one event was emitted
+  expect(logs.length).to.equal(1);
+
+  // Decode the log using the contract's interface  
+  const decodedEvent = buildingFactory.interface.parseLog(logs[0]) as LogDescription; // Get the first log
+
+  // Extract and verify the emitted address  
+  return await ethers.getContractAt('Token',  decodedEvent.args[0]); // Assuming the address is the first argument
+}
+
+async function getDeployedGovernance(buildingFactory: Contract, blockNumber: number) {
+  // Decode the event using queryFilter
+  const logs = await buildingFactory.queryFilter(buildingFactory.filters['NewGovernance(address, address, address)'], blockNumber, blockNumber);
+
+  // Ensure one event was emitted
+  expect(logs.length).to.equal(1);
+
+  // Decode the log using the contract's interface  
+  const decodedEvent = buildingFactory.interface.parseLog(logs[0]) as LogDescription; // Get the first log
+
+  // Extract and verify the emitted address  
+  return await ethers.getContractAt('BuildingGovernance',  decodedEvent.args[0]); // Assuming the address is the first argument
+}
+
+async function getDeployedTreasury(buildingFactory: Contract, blockNumber: number) {
+  // Decode the event using queryFilter
+  const logs = await buildingFactory.queryFilter(buildingFactory.filters['NewTreasury(address, address, address)'], blockNumber, blockNumber);
+
+  // Ensure one event was emitted
+  expect(logs.length).to.equal(1);
+
+  // Decode the log using the contract's interface  
+  const decodedEvent = buildingFactory.interface.parseLog(logs[0]) as LogDescription; // Get the first log
+
+  // Extract and verify the emitted address  
+  return await ethers.getContractAt('Treasury',  decodedEvent.args[0]); // Assuming the address is the first argument
 }
 
 describe('BuildingFactory', () => {
@@ -208,57 +276,8 @@ describe('BuildingFactory', () => {
 
   });
 
-  describe('.callFromBuilding()', () => {
-    describe('when INVALID building address', () => {
-      it('should revert', async () => {
-        const { buildingFactory, nftCollectionAddress } = await loadFixture(deployFixture);
-        const invalidBuildingAddress = ethers.Wallet.createRandom().address;
-        const NFT_ID = 0;
-
-        const ERC721MetadataIface = new ethers.Interface(ERC721MetadataABI.abi);
-        const encodedMetadataFunctionData = ERC721MetadataIface.encodeFunctionData(
-          "setMetadata(uint256,string[],string[])", // function selector
-          [ // function parameters
-            NFT_ID, 
-            ["size"], 
-            ["8"]
-          ]
-        );
-        
-        await expect(
-          buildingFactory.callFromBuilding(invalidBuildingAddress, nftCollectionAddress, encodedMetadataFunctionData)
-        ).to.be.revertedWith('BuildingFactory: Invalid building address');
-      });
-    });
+  describe('.callContract()', () => {
     describe('when VAlID building address', () => {
-      describe('when contract is NOT whitelisted', () => {
-        it('should revert', async () => {
-          const { buildingFactory } = await loadFixture(deployFixture);
-          const NFT_ID = 0;
-          const invalidContractAddress = ethers.Wallet.createRandom().address;
-
-          const tokenURI = "ipfs://building-nft-uri";
-          const tx = await buildingFactory.newBuilding(tokenURI);
-          await tx.wait();
-          
-          const building  = await getDeployedBuilding(buildingFactory, tx.blockNumber as number);
-          const buildingAddress = await building.getAddress();
-  
-          const ERC721MetadataIface = new ethers.Interface(ERC721MetadataABI.abi);
-          const encodedMetadataFunctionData = ERC721MetadataIface.encodeFunctionData(
-            "setMetadata(uint256,string[],string[])", // function selector
-            [ // function parameters
-              NFT_ID, 
-              ["size"], 
-              ["8"]
-            ]
-          );
-          
-          await expect(
-            buildingFactory.callFromBuilding(buildingAddress, invalidContractAddress, encodedMetadataFunctionData)
-          ).to.be.revertedWith('BuildingFactory: Invalid callable contract');
-        });
-      });
       describe('when contract IS whitelisted', () => {
         it('should call ERC721Metadata contract and set metadata', async () => {
           const { buildingFactory, nftCollection, nftCollectionAddress } = await loadFixture(deployFixture);
@@ -269,7 +288,6 @@ describe('BuildingFactory', () => {
           await tx.wait();
           
           const building  = await getDeployedBuilding(buildingFactory, tx.blockNumber as number);
-          const buildingAddress = await building.getAddress();
   
           const ERC721MetadataIface = new ethers.Interface(ERC721MetadataABI.abi);
           const encodedMetadataFunctionData = ERC721MetadataIface.encodeFunctionData(
@@ -281,7 +299,7 @@ describe('BuildingFactory', () => {
             ]
           );
           
-          await buildingFactory.callFromBuilding(buildingAddress, nftCollectionAddress, encodedMetadataFunctionData);
+          await building.callContract(nftCollectionAddress, encodedMetadataFunctionData);
           const metadata = await nftCollection["getMetadata(uint256)"](NFT_ID);
 
           expect(metadata[0][0]).to.be.equal('size')
@@ -322,6 +340,7 @@ describe('BuildingFactory', () => {
       it('should create token', async () => {
         const { 
           buildingFactory, 
+          owner
          } = await loadFixture(deployFixture);
 
           const tx = await buildingFactory.newBuilding("ipfs://tokenuri");
@@ -337,7 +356,7 @@ describe('BuildingFactory', () => {
          const deployedToken = buildingDetails[4];
 
          expect(deployedToken).to.be.properAddress; // tokenAddress;
-         expect(tx).to.emit(tx2, 'NewERC3643Token').withArgs(buildingAddress, deployedToken);
+         await expect(tx2).to.emit(buildingFactory, 'NewERC3643Token').withArgs(deployedToken, buildingAddress, owner.address);
       });
 
       describe('when building already deployed', () => {
@@ -358,6 +377,85 @@ describe('BuildingFactory', () => {
            await expect(buildingFactory.newERC3643Token(buildingAddress, "other name", "OTKN", 18))
             .to.be.revertedWith('BuildingFactory: token already created for building');
         });
+      });
+    });
+  });
+
+  describe('.newTreasury()', () => {
+    describe('when building address is invalid', () => {
+      it('should revert', async () => {
+        const { buildingFactory } = await loadFixture(deployFixture);
+        await expect(buildingFactory.newTreasury(ethers.ZeroAddress, ethers.ZeroAddress, 0, 0)).to.be.revertedWith('BuildingFactory: Invalid building address');
+        await expect(buildingFactory.newTreasury(ethers.Wallet.createRandom().address, ethers.ZeroAddress, 0, 0)).to.be.revertedWith('BuildingFactory: Invalid building address');
+      });
+    });
+
+    describe('when token address is invalid', () => {
+      it('should revert', async () => {
+        const { buildingFactory, owner } = await loadFixture(deployFixture);
+        
+        const buildingTx = await buildingFactory.newBuilding("ipfs:://anyurl");
+        const building  = await getDeployedBuilding(buildingFactory, buildingTx.blockNumber as number);
+        const buildingAddress = await building.getAddress();
+
+        await expect(buildingFactory.newTreasury(buildingAddress, ethers.ZeroAddress, 0, 0)).to.be.revertedWith('BuildingFactory: Invalid token address');
+        await expect(buildingFactory.newTreasury(buildingAddress, ethers.Wallet.createRandom().address, 0, 0)).to.be.revertedWith('BuildingFactory: Invalid token address');
+      });
+    });
+
+    describe('when building and token addresses are valid', () => {
+      it('should create treasury', async () => {
+        const { buildingFactory, owner } = await loadFixture(deployFixture);
+
+        const buildingTx = await buildingFactory.newBuilding("ipfs:://anyurl");
+        const building  = await getDeployedBuilding(buildingFactory, buildingTx.blockNumber as number);
+        const buildingAddress = await building.getAddress();
+
+        const tokenTx = await buildingFactory.newERC3643Token(buildingAddress, "token name", "TKN", 18);
+        await tokenTx.wait();
+
+        const buildingDetails = await buildingFactory.getBuildingDetails(buildingAddress);
+        const tokenAddress = buildingDetails.erc3643Token;
+
+        const newTreasuryTx = await buildingFactory.newTreasury(buildingAddress, tokenAddress, 100, 100);
+        await newTreasuryTx.wait();
+
+        const buildingDetails2 = await buildingFactory.getBuildingDetails(buildingAddress);
+        const treasuryAddress = buildingDetails2.treasury;
+        
+        expect(treasuryAddress).to.be.properAddress; // treasuryAddress;
+        await expect(newTreasuryTx).to.emit(buildingFactory, 'NewTreasury').withArgs(treasuryAddress, buildingAddress, owner);
+  
+      });
+    });
+  });
+
+  describe('.newGovernance()', () => {
+    describe('when is valid building, token and treasury', () => {
+      it('should create new governance', async () => {
+        const { buildingFactory, owner } = await loadFixture(deployFixture);
+
+        const buildingTx = await buildingFactory.newBuilding("ipfs:://anyurl");
+        const building  = await getDeployedBuilding(buildingFactory, buildingTx.blockNumber as number);
+        const buildingAddress = await building.getAddress();
+
+        const tokenTx = await buildingFactory.newERC3643Token(buildingAddress, "Token Name", "Symbol", 18);
+        const token = await getDeployedToken(buildingFactory, tokenTx.blockNumber as number);
+        const tokenAddress = await token.getAddress();
+
+        const treasuryTx = await buildingFactory.newTreasury(buildingAddress, tokenAddress, 100, 100)
+        const treasury = await getDeployedTreasury(buildingFactory, treasuryTx.blockNumber as number);
+        const treasuryAddress = await treasury.getAddress();
+
+        const newGovernanceTx = await buildingFactory.newGovernance(buildingAddress, "New Governance", tokenAddress, treasuryAddress);
+        const governance = await getDeployedGovernance(buildingFactory, newGovernanceTx.blockNumber as number);
+        const governanceAdress = await governance.getAddress();
+
+        const buildingDetails = await buildingFactory.getBuildingDetails(buildingAddress);
+        
+        expect(buildingDetails.governance).to.be.properAddress; // treasuryAddress;
+        expect(governanceAdress).to.be.equal(buildingDetails.governance);
+        await expect(newGovernanceTx).to.emit(buildingFactory, 'NewGovernance').withArgs(buildingDetails.governance, buildingAddress, owner);
       });
     });
   });

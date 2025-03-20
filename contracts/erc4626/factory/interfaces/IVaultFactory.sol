@@ -43,4 +43,16 @@ interface IVaultFactory {
         VaultDetails calldata vaultDetails,
         FeeConfiguration.FeeConfig calldata feeConfig
     ) external payable returns (address vault);
+
+    /**
+     * Generate salt
+     * @param deployer address
+     * @param token address
+     * @param nonce uint256
+     */
+    function generateSalt(
+        address deployer,
+        address token,
+        uint256 nonce
+    ) external pure returns (string memory);
 }

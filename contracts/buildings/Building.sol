@@ -16,15 +16,14 @@ contract Building is BuildingBase, BuildingLiquidityPool, BuildingAudit {
      * Contract initializer
      * @param _uniswapRouter uniswap router address
      * @param _uniswapFactory uniswap factory address
-     * @param _nftAddress NFT collection address
+     * @param _initialOwner initial owner
      */
     function initialize (
         address _uniswapRouter, 
         address _uniswapFactory,
-        address _nftAddress
+        address _initialOwner
     ) public virtual initializer {
-        __Ownable_init(_msgSender());
-        __Building_init();
+        __Building_init(_initialOwner);
         __Liquidity_init(_uniswapRouter, _uniswapFactory);
         __Audit_init();
     }
