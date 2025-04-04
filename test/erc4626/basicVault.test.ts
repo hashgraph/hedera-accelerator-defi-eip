@@ -1,4 +1,4 @@
-import { anyValue, ethers, expect } from "../setup";
+import { anyValue, ethers, expect, time } from "../setup";
 import { PrivateKey, Client, AccountId } from "@hashgraph/sdk";
 import hre from "hardhat";
 import { BigNumberish, Wallet, ZeroAddress } from "ethers";
@@ -33,6 +33,9 @@ const feeConfig = {
     feePercentage: 0,
 };
 
+const cliff = 100;
+const unlockDuration = 500;
+
 // Tests
 describe("BasicVault", function () {
     async function deployFixture() {
@@ -66,7 +69,9 @@ describe("BasicVault", function () {
             "TST",
             feeConfig,
             owner.address,
-            owner.address
+            owner.address,
+            cliff,
+            unlockDuration
         ) as BasicVault;
         await hederaVault.waitForDeployment();
 
@@ -226,6 +231,18 @@ describe("BasicVault", function () {
 
             await hederaVault.approve(hederaVault.target, amountToWithdraw);
 
+            // Check revert if shares aren't unlocked
+            await expect(
+                hederaVault.withdraw(
+                    amountToWithdraw,
+                    owner.address,
+                    owner.address
+                )
+            ).to.be.revertedWithCustomError(hederaVault, "ERC4626ExceededMaxWithdraw");
+
+            // Warp time to unlock shares
+            await time.increase(1000);
+
             const tx = await hederaVault.withdraw(
                 amountToWithdraw,
                 owner.address,
@@ -299,6 +316,9 @@ describe("BasicVault", function () {
             console.log("Current reward staker: ", currentRewardStaker);
 
             await hederaVault.approve(hederaVault.target, amountToWithdraw);
+
+            // Warp time to unlock shares
+            await time.increase(1000);
 
             const tx = await hederaVault.withdraw(
                 amountToWithdraw,
@@ -472,6 +492,18 @@ describe("BasicVault", function () {
 
             await hederaVault.approve(hederaVault.target, amountToRedeem);
 
+            // Check revert if shares aren't unlocked
+            await expect(
+                hederaVault.redeem(
+                    amountToRedeem,
+                    owner.address,
+                    owner.address
+                )
+            ).to.be.revertedWithCustomError(hederaVault, "ERC4626ExceededMaxRedeem");
+
+            // Warp time to unlock shares
+            await time.increase(1000);
+
             const tx = await hederaVault.redeem(
                 amountToRedeem,
                 owner.address,
@@ -644,7 +676,7 @@ describe("BasicVault", function () {
     });
 
     describe("flow tests", function () {
-        it.only("two people, two withdraw, add reward, all claim", async function () {
+        it("two people, two withdraw, add reward, all claim", async function () {
             const { hederaVault, owner, testAccount, stakingToken, rewardToken, client } = await deployFixture();
             const amountToWithdraw = 100;
             const amountToStake = 112412;

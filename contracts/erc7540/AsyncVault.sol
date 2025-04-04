@@ -31,8 +31,11 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
     // Min reward amount considired in case of small reward
     uint8 private constant MIN_REWARD = 1;
 
-    // Shares lock time
-    uint32 private sharesLockTime;
+    // Total duration of vesting (after cliff date) expressed in seconds
+    uint32 private _unlockDuration;
+
+    // Cliff date expressed in seconds
+    uint32 public _cliff;
 
     // Reward tokens
     address[] private _rewardTokens;
@@ -49,7 +52,9 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
     // User Info struct
     struct UserInfo {
         uint256 sharesAmount;
-        uint256 lastLockedTime;
+        uint256 totalLocked;
+        uint256 totalReleased;
+        uint256 depositLockCheckpoint;
         mapping(address => uint256) lastClaimedAmountT;
         bool exist;
     }
@@ -66,7 +71,7 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
      *
      * @param time The shares lock period.
      */
-    event SetSharesLockTime(uint24 time);
+    event SetSharesLockTime(uint32 time);
 
     /**
      * @notice RewardAdded event.
@@ -77,31 +82,35 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
      */
     event RewardAdded(address indexed rewardToken, uint256 amount);
 
-    // Thrown when attempting to redeem shares that are still locked
-    error SharesLocked();
-
     // Thrown when owner adds reward which exceeds max token amount
     error MaxRewardTokensAmount();
 
     /**
      * @dev Initializes contract with passed parameters.
      *
-     * @param _underlying The address of the asset token.
-     * @param _name The share token name.
-     * @param _symbol The share token symbol.
-     * @param _feeConfig The fee configuration struct.
-     * @param _vaultRewardController The Vault reward controller user.
-     * @param _feeConfigController The fee config controller user.
+     * @param underlying_ The address of the asset token.
+     * @param name_ The share token name.
+     * @param symbol_ The share token symbol.
+     * @param feeConfig_ The fee configuration struct.
+     * @param vaultRewardController_ The Vault reward controller user.
+     * @param feeConfigController_ The fee config controller user.
+     * @param cliff_ The cliff date expressed in seconds.
+     * @param unlockDuration_ The unlock duration expressed in seconds.
      */
     constructor(
-        IERC20 _underlying,
-        string memory _name,
-        string memory _symbol,
-        FeeConfig memory _feeConfig,
-        address _vaultRewardController,
-        address _feeConfigController
-    ) payable ERC7540(_underlying) ERC20(_name, _symbol) Ownable(msg.sender) {
-        __FeeConfiguration_init(_feeConfig, _vaultRewardController, _feeConfigController);
+        IERC20 underlying_,
+        string memory name_,
+        string memory symbol_,
+        FeeConfig memory feeConfig_,
+        address vaultRewardController_,
+        address feeConfigController_,
+        uint32 cliff_,
+        uint32 unlockDuration_
+    ) payable ERC7540(underlying_) ERC20(name_, symbol_) Ownable(msg.sender) {
+        __FeeConfiguration_init(feeConfig_, vaultRewardController_, feeConfigController_);
+
+        _cliff = cliff_;
+        _unlockDuration = unlockDuration_;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -138,10 +147,7 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
      * @return shares The shares amount.
      */
     function deposit(uint256 assets, address to, address controller) public override returns (uint256 shares) {
-        uint256 sharesBalance = balanceOf(to);
         shares = super.deposit(assets, to, controller);
-        // Start shares lock time
-        _lockShares(to, sharesBalance, shares);
         _afterDeposit(assets, to);
     }
 
@@ -165,9 +171,7 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
      * @return assets The assets amount.
      */
     function mint(uint256 shares, address to, address controller) public override returns (uint256 assets) {
-        uint256 sharesBalance = balanceOf(to);
         assets = super.mint(shares, to, controller);
-        _lockShares(to, sharesBalance, shares);
         _afterDeposit(assets, to);
     }
 
@@ -175,8 +179,6 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
      * @inheritdoc ERC7540
      */
     function requestRedeem(uint256 shares, address controller, address owner) public override {
-        // Require deposited shares arent locked
-        _checkSharesLocked(controller);
         super.requestRedeem(shares, controller, owner);
         _fulfillRedeemRequest(controller, shares, convertToAssets(shares));
     }
@@ -206,6 +208,16 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
     }
 
     /**
+     * @dev Sets shares lock time.
+     *
+     * @param time The lock period.
+     */
+    function setSharesLockTime(uint32 time) external onlyOwner {
+        _unlockDuration = time;
+        emit SetSharesLockTime(time);
+    }
+
+    /**
      * @dev Override to include '_beforeWithdraw' hook.
      */
     function _withdraw(
@@ -216,16 +228,6 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
     ) internal override returns (uint256 assetsReturn, uint256 sharesReturn) {
         _beforeWithdraw(assets, receiver);
         return super._withdraw(assets, shares, receiver, controller);
-    }
-
-    /**
-     * @dev Sets shares lock time.
-     *
-     * @param time The lock period.
-     */
-    function setSharesLockTime(uint24 time) external onlyOwner {
-        sharesLockTime = time;
-        emit SetSharesLockTime(time);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -241,6 +243,7 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
     function _beforeWithdraw(uint256 _amount, address _rewardReceiver) internal {
         claimAllReward(0, _rewardReceiver);
         _userContribution[msg.sender].sharesAmount -= _amount;
+        _userContribution[msg.sender].totalReleased += _amount;
     }
 
     /**
@@ -257,43 +260,39 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
                 _userContribution[msg.sender].lastClaimedAmountT[token] = _tokensRewardInfo[token].amount;
             }
             _userContribution[msg.sender].sharesAmount = _amount;
+            _userContribution[msg.sender].totalLocked = _amount;
+            _userContribution[msg.sender].depositLockCheckpoint = block.timestamp;
             _userContribution[msg.sender].exist = true;
-            _userContribution[msg.sender].lastLockedTime = block.timestamp;
         } else {
             if (_userContribution[msg.sender].sharesAmount == 0) {
                 _userContribution[msg.sender].sharesAmount += _amount;
+                _userContribution[msg.sender].totalLocked += _amount;
+                _userContribution[msg.sender].depositLockCheckpoint = block.timestamp;
             } else {
                 claimAllReward(0, _rewardReceiver);
                 _userContribution[msg.sender].sharesAmount += _amount;
-                _userContribution[msg.sender].lastLockedTime = block.timestamp;
+                _userContribution[msg.sender].totalLocked += _amount;
+                _userContribution[msg.sender].depositLockCheckpoint = block.timestamp;
             }
         }
     }
 
-    /**
-     * @dev Reverts if deposited shares are locked.
-     *
-     * @param controller The shares controller.
-     */
-    function _checkSharesLocked(address controller) private view {
-        if (block.timestamp < _depositLockCheckPoint[controller] + sharesLockTime) revert SharesLocked();
-    }
+    function _unlocked(address account) private view returns (uint256 unlocked) {
+        UserInfo storage info = _userContribution[account];
 
-    /**
-     * @dev Locks the deposited shares for a fixed period.
-     *
-     * @param to The shares receiver.
-     * @param sharesBalance The current shares balance.
-     * @param newShares The newly minted shares.
-     */
-    function _lockShares(address to, uint256 sharesBalance, uint256 newShares) private {
-        uint256 newBalance = sharesBalance + newShares;
-        if (sharesBalance == 0) {
-            _depositLockCheckPoint[to] = block.timestamp;
+        uint256 currentlyLocked = info.totalLocked - info.totalReleased;
+
+        uint256 lockStart = info.depositLockCheckpoint + _cliff;
+
+        if (block.timestamp < lockStart || currentlyLocked == 0) return 0;
+
+        uint256 lockEnd = lockStart + _unlockDuration;
+
+        if (block.timestamp >= lockEnd) {
+            unlocked = currentlyLocked;
         } else {
-            _depositLockCheckPoint[to] =
-                ((_depositLockCheckPoint[to] * sharesBalance) / newBalance) +
-                ((block.timestamp * newShares) / newBalance);
+            uint256 elapsed = block.timestamp - lockStart;
+            unlocked = (currentlyLocked * elapsed) / _unlockDuration;
         }
     }
 
@@ -393,6 +392,26 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
     }
 
     /**
+     * @dev Returns the amount of locked shares.
+     *
+     * @param account The user address.
+     * @return The amount of locked shares.
+     */
+    function lockedOf(address account) public view returns (uint256) {
+        return _userContribution[account].totalLocked - _userContribution[account].totalReleased - unlockedOf(account);
+    }
+
+    /**
+     * @dev Returns the amount of unlocked shares.
+     *
+     * @param account The user address.
+     * @return The amount of unlocked shares.
+     */
+    function unlockedOf(address account) public view returns (uint256) {
+        return _unlocked(account);
+    }
+
+    /**
      * @dev Returns all rewards for a user with fee considering.
      *
      * @param _user The user address.
@@ -405,6 +424,20 @@ contract AsyncVault is ERC7540, ERC165, FeeConfiguration, Ownable {
         for (uint256 i = 0; i < rewardsSize; i++) {
             _rewards[i] = getUserReward(_user, _rewardTokens[i]);
         }
+    }
+
+    /**
+     * @dev Returns the max possible amount of shares to redeem.
+     */
+    function maxRedeem(address owner) public view virtual override returns (uint256) {
+        return unlockedOf(owner);
+    }
+
+    /**
+     * @dev Returns the max possible amount of assets to withdraw.
+     */
+    function maxWithdraw(address owner) public view virtual override returns (uint256 assets) {
+        return convertToAssets(unlockedOf(owner));
     }
 
     /**

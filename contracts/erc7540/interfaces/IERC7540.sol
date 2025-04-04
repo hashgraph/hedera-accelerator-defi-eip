@@ -73,4 +73,13 @@ interface IERC7540 {
      * @return shares The shares amount.
      */
     function pendingRedeemRequest(address owner) external view returns (uint256 shares);
+
+    /**
+     * @dev Sets or removes an operator for the caller.
+     *
+     * @param operator The address of the operator.
+     * @param approved The approval status.
+     * @return success Whether the call was executed successfully or not
+     */
+    function setOperator(address operator, bool approved) external returns (bool success);
 }

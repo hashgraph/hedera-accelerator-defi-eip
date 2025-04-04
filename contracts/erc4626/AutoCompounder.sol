@@ -62,7 +62,8 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable, ERC165 {
         address vault_,
         address usdc_,
         string memory name_,
-        string memory symbol_
+        string memory symbol_,
+        address operator_
     ) payable ERC20(name_, symbol_, ERC20(IERC4626(vault_).asset()).decimals()) Ownable(msg.sender) {
         require(uniswapV2Router_ != address(0), "AutoCompounder: Invalid Uniswap Router address");
         require(vault_ != address(0), "AutoCompounder: Invalid Vault address");
@@ -81,6 +82,10 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable, ERC165 {
 
         _path = new address[](2);
         (_path[0], _path[1]) = (usdc(), asset());
+
+        if (isAsync) {
+            IERC7540(vault()).setOperator(operator_, true);
+        }
     }
 
     /*///////////////////////////////////////////////////////////////

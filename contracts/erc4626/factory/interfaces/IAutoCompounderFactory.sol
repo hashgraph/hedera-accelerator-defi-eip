@@ -26,6 +26,7 @@ interface IAutoCompounderFactory {
         address usdc;
         string aTokenName;
         string aTokenSymbol;
+        address operator;
     }
 
     /**

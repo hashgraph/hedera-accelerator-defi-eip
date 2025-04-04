@@ -28,6 +28,9 @@ const feeConfig = {
     feePercentage: 0,
 };
 
+const unlockDuration1 = 300;
+const unlockDuration2 = 500;
+
 // Tests
 describe("AutoCompounder", function () {
     async function deployFixture(vaultType: VaultType) {
@@ -59,9 +62,9 @@ describe("AutoCompounder", function () {
 
         let vault;
         if (vaultType === VaultType.Basic) {
-            vault = await deployBasicVault(stakingToken, owner, feeConfig) as BasicVault;
+            vault = await deployBasicVault(stakingToken, owner, feeConfig, unlockDuration1) as BasicVault;
         } else {
-            vault = await deployAsyncVault(stakingToken, owner, feeConfig) as AsyncVault;
+            vault = await deployAsyncVault(stakingToken, owner, feeConfig, unlockDuration2) as AsyncVault;
         }
 
         const AutoCompounder = await ethers.getContractFactory("AutoCompounder");
@@ -70,7 +73,8 @@ describe("AutoCompounder", function () {
             vault.target,
             rewardToken.target, // TODO: change to real USDC
             "TST",
-            "TST"
+            "TST",
+            ZeroAddress
         ) as AutoCompounder;
         await autoCompounder.waitForDeployment();
 

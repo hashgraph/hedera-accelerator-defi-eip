@@ -15,6 +15,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC7540} from "../erc7540/interfaces/IERC7540.sol";
+
 import {IAutoCompounder} from "./interfaces/IAutoCompounder.sol";
 import {ISlice} from "./interfaces/ISlice.sol";
 import {IRewards} from "./interfaces/IRewards.sol";
@@ -204,6 +207,43 @@ contract Slice is ISlice, ERC20, Ownable, ERC165 {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @dev Handles withdraw from IERC4626 and IERC7540 assuming current unlocked amount of shares.
+     *
+     * @param aToken The address of aToken.
+     * @param amountToWithdraw The needed aToken amount to withdraw.
+     * @param exchangeRate The vToken/aToken exchange rate to convert and compare with unlocked underlying amount.
+     * @return withdrawnAmount The withdrawn amount of underlying token.
+     */
+    function _handleWithdraw(
+        address aToken,
+        uint256 amountToWithdraw,
+        uint256 exchangeRate
+    ) public returns (uint256 withdrawnAmount) {
+        address _vault = IAutoCompounder(aToken).vault();
+        uint256 maxWithdrawAmount = IERC4626(_vault).maxWithdraw(aToken);
+
+        uint256 neededUnderlying = amountToWithdraw / exchangeRate; // Convert aToken to underlying for checks
+
+        if (maxWithdrawAmount == 0) return 0; // Return 0 if tokens are locked
+
+        if (ERC165Checker.supportsInterface(_vault, type(IERC7540).interfaceId)) {
+            IERC7540(_vault).requestRedeem(neededUnderlying, aToken, aToken); // Request full needed amount to meet ideal balance in next iteration
+
+            if (maxWithdrawAmount < neededUnderlying) {
+                return IAutoCompounder(aToken).withdraw(maxWithdrawAmount * exchangeRate, address(this)); // Withdraw max possible amount
+            } else {
+                return IAutoCompounder(aToken).withdraw(amountToWithdraw, address(this)); // Withdraw needed amount
+            }
+        } else {
+            if (maxWithdrawAmount < neededUnderlying) {
+                return IAutoCompounder(aToken).withdraw(maxWithdrawAmount * exchangeRate, address(this)); // Withdraw max possible amount
+            } else {
+                return IAutoCompounder(aToken).withdraw(amountToWithdraw, address(this)); // Withdraw needed amount
+            }
+        }
+    }
+
+    /**
      * @dev Generates array of payloads with caching target amounts and balances for each aToken.
      *
      * @return payloads The array of rebalance payloads.
@@ -240,21 +280,32 @@ contract Slice is ISlice, ERC20, Ownable, ERC165 {
             if (aTokenBalance > aTokenTargetAmount) {
                 aTokenExcessAmount = aTokenBalance - aTokenTargetAmount;
 
-                withdrawnUnderlyingAmount = IAutoCompounder(aToken).withdraw(aTokenExcessAmount, address(this));
+                withdrawnUnderlyingAmount = _handleWithdraw(aToken, aTokenExcessAmount, aTokenToUnderlyingRate);
 
-                // Swap excess underlying to USDC for next 'buy' trades
-                _tradeForToken(asset, baseToken(), withdrawnUnderlyingAmount);
+                if (withdrawnUnderlyingAmount != 0) {
+                    // Swap excess underlying to USDC for next 'buy' trades
+                    _tradeForToken(asset, baseToken(), withdrawnUnderlyingAmount);
 
-                _balances[baseToken()] = IERC20(baseToken()).balanceOf(address(this));
+                    _balances[baseToken()] = IERC20(baseToken()).balanceOf(address(this));
 
-                payloads[i] = RebalancePayload({
-                    aToken: aToken,
-                    asset: asset,
-                    targetUnderlyingAmount: targetUnderlyingAmount,
-                    aTokenTargetAmount: aTokenTargetAmount,
-                    currentBalance: aTokenBalance - aTokenExcessAmount,
-                    availableReward: 0
-                });
+                    payloads[i] = RebalancePayload({
+                        aToken: aToken,
+                        asset: asset,
+                        targetUnderlyingAmount: targetUnderlyingAmount,
+                        aTokenTargetAmount: aTokenTargetAmount,
+                        currentBalance: aTokenBalance - aTokenExcessAmount,
+                        availableReward: 0
+                    });
+                } else {
+                    payloads[i] = RebalancePayload({
+                        aToken: aToken,
+                        asset: asset,
+                        targetUnderlyingAmount: targetUnderlyingAmount,
+                        aTokenTargetAmount: aTokenTargetAmount,
+                        currentBalance: aTokenBalance,
+                        availableReward: IRewards(IAutoCompounder(aToken).vault()).getUserReward(aToken, baseToken())
+                    });
+                }
             } else {
                 payloads[i] = RebalancePayload({
                     aToken: aToken,
@@ -280,6 +331,7 @@ contract Slice is ISlice, ERC20, Ownable, ERC165 {
         uint256 balance;
         uint256 availableReward;
         uint256 difference;
+        uint256 currentExchangeRate;
         uint256 neededUnderlying;
         uint256 withdrawnUnderlyingAmount;
         uint256 neededUsdcToSwapForUnderlying;
@@ -293,18 +345,22 @@ contract Slice is ISlice, ERC20, Ownable, ERC165 {
             balance = payloads[i].currentBalance;
             availableReward = payloads[i].availableReward;
 
-            if (aTokenTargetAmount == balance) continue;
+            // Skip the iteration if already have 'ideal' balance or tokens are locked
+            // Balance can't be gt 'aTokenTargetAmount' amount cuz possible excess was swapped in previous step, if tokens were unlocked
+            if (balance >= aTokenTargetAmount) continue;
+
+            currentExchangeRate = IAutoCompounder(aToken).exchangeRate();
 
             difference = aTokenTargetAmount - balance;
-            neededUnderlying = difference / IAutoCompounder(aToken).exchangeRate();
+            neededUnderlying = difference / currentExchangeRate;
 
             if (availableReward > 0) {
-                if (difference > balance) {
-                    withdrawnUnderlyingAmount = IAutoCompounder(aToken).withdraw(balance, address(this));
-                } else {
-                    withdrawnUnderlyingAmount = IAutoCompounder(aToken).withdraw(difference, address(this));
-                }
+                difference > balance
+                    ? withdrawnUnderlyingAmount = _handleWithdraw(aToken, balance, currentExchangeRate)
+                    : withdrawnUnderlyingAmount = _handleWithdraw(aToken, difference, currentExchangeRate);
             }
+
+            if (withdrawnUnderlyingAmount == 0) continue; // Skip the interation due to locked tokens
 
             // Swap underlying for USDC
             _tradeForToken(asset, baseToken(), withdrawnUnderlyingAmount);

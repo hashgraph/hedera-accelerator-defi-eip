@@ -67,6 +67,11 @@
               "internalType": "string",
               "name": "aTokenSymbol",
               "type": "string"
+            },
+            {
+              "internalType": "address",
+              "name": "operator",
+              "type": "address"
             }
           ],
           "internalType": "struct IAutoCompounderFactory.AutoCompounderDetails",

@@ -7,6 +7,8 @@ export enum VaultType {
     Async
 }
 
+const cliff = 100;
+
 export async function getCorrectDepositNumber(vault: any) {
     for (let i = 1; i > 0; i++) {
         if (await vault.previewDeposit(i) != 0) {
@@ -18,7 +20,8 @@ export async function getCorrectDepositNumber(vault: any) {
 export async function deployBasicVault(
     stakingToken: AddressLike,
     owner: AddressLike,
-    feeConfig: any
+    feeConfig: any,
+    unlockDuration: number
 ) {
     const BasicVault = await ethers.getContractFactory("BasicVault");
     const vault = await BasicVault.deploy(
@@ -27,7 +30,9 @@ export async function deployBasicVault(
         "TST",
         feeConfig,
         owner,
-        owner
+        owner,
+        cliff,
+        unlockDuration
     );
     await vault.waitForDeployment();
     return vault;
@@ -36,16 +41,19 @@ export async function deployBasicVault(
 export async function deployAsyncVault(
     stakingToken: AddressLike,
     owner: AddressLike,
-    feeConfig: any
+    feeConfig: any,
+    unlockDuration: number
 ) {
-    const AsyncVault = await ethers.getContractFactory("contracts/erc7540/AsyncVault.sol:AsyncVault");
+    const AsyncVault = await ethers.getContractFactory("AsyncVault");
     const asyncVault = await AsyncVault.deploy(
         stakingToken,
         "AsyncTST",
         "AsyncTST",
         feeConfig,
         owner,
-        owner
+        owner,
+        cliff,
+        unlockDuration
     );
     await asyncVault.waitForDeployment();
     return asyncVault;

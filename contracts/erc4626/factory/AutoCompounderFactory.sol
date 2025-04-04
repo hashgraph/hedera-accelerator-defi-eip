@@ -72,7 +72,8 @@ contract AutoCompounderFactory is IAutoCompounderFactory, Ownable, ERC165 {
             autoCompounderDetails.vault,
             autoCompounderDetails.usdc,
             autoCompounderDetails.aTokenName,
-            autoCompounderDetails.aTokenSymbol
+            autoCompounderDetails.aTokenSymbol,
+            autoCompounderDetails.operator
         );
 
         bytes memory deploymentData = abi.encodePacked(_code, _constructData);

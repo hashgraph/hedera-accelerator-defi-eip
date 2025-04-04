@@ -254,11 +254,7 @@ abstract contract ERC7540 is ERC4626, IERC7540 {
     }
 
     /**
-     * @dev Sets or removes an operator for the caller.
-     *
-     * @param operator The address of the operator.
-     * @param approved The approval status.
-     * @return success Whether the call was executed successfully or not
+     * @inheritdoc IERC7540
      */
     function setOperator(address operator, bool approved) external returns (bool success) {
         if (msg.sender == operator) revert InvalidOperator();
@@ -293,14 +289,14 @@ abstract contract ERC7540 is ERC4626, IERC7540 {
     /**
      * @dev Returns the max possible amount of shares to redeem.
      */
-    function maxRedeem(address owner) public view virtual override returns (uint256) {
+    function maxRedeem(address owner) public view virtual override returns (uint256 shares) {
         return _claimableRedeemRequest[owner].shares;
     }
 
     /**
      * @dev Returns the max possible amount of assets to withdraw.
      */
-    function maxWithdraw(address owner) public view virtual override returns (uint256 shares) {
+    function maxWithdraw(address owner) public view virtual override returns (uint256 assets) {
         return convertToAssets(maxRedeem(owner));
     }
 

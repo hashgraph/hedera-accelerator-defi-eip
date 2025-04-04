@@ -27,6 +27,9 @@ const operatorAccountId = AccountId.fromString(process.env.ACCOUNT_ID || '');
 
 const testAccount = new hre.ethers.Wallet(process.env.PRIVATE_KEY_TEST!, ethers.provider);
 
+const cliff = 100;
+const unlockDuration = 500;
+
 // Tests
 describe("AsyncVault", function () {
     async function deployFixture() {
@@ -63,14 +66,16 @@ describe("AsyncVault", function () {
             feePercentage: 0,
         };
 
-        const AsyncVault = await ethers.getContractFactory("contracts/erc7540/AsyncVault.sol:AsyncVault");
+        const AsyncVault = await ethers.getContractFactory("AsyncVault");
         const asyncVault = await AsyncVault.deploy(
             stakingToken.target,
             "TST",
             "TST",
             feeConfig,
             owner.address,
-            owner.address
+            owner.address,
+            cliff,
+            unlockDuration
         ) as AsyncVault;
         await asyncVault.waitForDeployment();
 
@@ -220,8 +225,17 @@ describe("AsyncVault", function () {
             await rewardToken.approve(asyncVault.target, rewardAmount);
             await asyncVault.addReward(rewardToken.target, rewardAmount);
 
+            // Check revert if shares aren't unlocked
+            await expect(
+                asyncVault.redeem(
+                    amountToRedeem,
+                    owner.address,
+                    owner.address
+                )
+            ).to.be.revertedWithCustomError(asyncVault, "MaxRedeemRequestExceeded");
+
             // Increase block timestamp to unlock shares
-            await time.increase(1000);
+            await time.increase(1100);
 
             await asyncVault.approve(asyncVault.target, amountToRedeem);
 
@@ -308,7 +322,7 @@ describe("AsyncVault", function () {
         });
     });
 
-    describe("withdraw", function () {
+    describe.only("withdraw", function () {
         it("Should stake the staking token, claim deposit and withdraw", async function () {
             const { asyncVault, owner, stakingToken, rewardToken } = await deployFixture();
             const amountToDeposit = 170;
@@ -365,6 +379,18 @@ describe("AsyncVault", function () {
                 requestRedeemTx
             ).to.emit(asyncVault, "RedeemRequested")
                 .withArgs(owner.address, owner.address, owner.address, amountToWithdraw);
+
+            // Check revert if shares aren't unlocked
+            await expect(
+                asyncVault.withdraw(
+                    amountToWithdraw,
+                    owner.address,
+                    owner.address
+                )
+            ).to.be.revertedWithCustomError(asyncVault, "ERC4626ExceededMaxWithdraw");
+
+            // Increase block timestamp to unlock shares
+            await time.increase(1100);
 
             // Withdraw
             const withdrawTx = await asyncVault.withdraw(amountToWithdraw, owner.address, owner.address);
