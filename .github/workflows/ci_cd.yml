@@ -58,7 +58,6 @@ jobs:
 
       - name: Run Tests
         run: yarn run test
-        continue-on-error: true
         
       - name: Extract and publish ABIs
         run: |
