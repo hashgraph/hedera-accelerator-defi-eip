@@ -380,7 +380,7 @@ describe("Slice", function () {
             console.log("Underlying2 balance after: ", await stakingToken2.balanceOf(slice.target));
         });
 
-        it.only("Should distribute tokens close to the provided allocation Autocompounders with partially unlocked tokens", async function () {
+        it("Should distribute tokens close to the provided allocation Autocompounders with partially unlocked tokens", async function () {
             const {
                 slice,
                 owner,

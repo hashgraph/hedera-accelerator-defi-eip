@@ -322,7 +322,7 @@ describe("AsyncVault", function () {
         });
     });
 
-    describe.only("withdraw", function () {
+    describe("withdraw", function () {
         it("Should stake the staking token, claim deposit and withdraw", async function () {
             const { asyncVault, owner, stakingToken, rewardToken } = await deployFixture();
             const amountToDeposit = 170;

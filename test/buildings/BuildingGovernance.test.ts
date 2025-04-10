@@ -77,7 +77,9 @@ async function deployFixture() {
     shareTokenName: await governanceToken.name(),
     shareTokenSymbol: await governanceToken.symbol(),
     vaultRewardController: treasuryAddress,
-    feeConfigController: initialOwner
+    feeConfigController: initialOwner,
+    cliff : 0,
+    unlockDuration : 0
   }
 
   const feeConfig = {
