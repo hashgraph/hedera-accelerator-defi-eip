@@ -164,9 +164,7 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
         address building,
         address token,
         uint256 reserveAmount,
-        uint256 nPercentage,
-        uint32 cliff,
-        uint32 unlockDuration
+        uint256 nPercentage
     ) external onlyBuildingOwner(building) {
         BuildingFactoryStorageData storage $ = _getBuildingFactoryStorage();
 
@@ -176,7 +174,7 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
         );
 
         address treasury = _deployTreasury(reserveAmount, nPercentage, msg.sender);
-        address vault = _deployVault(token, msg.sender, treasury, cliff, unlockDuration);
+        address vault = _deployVault(token, msg.sender, treasury);
 
         ITreasury(treasury).addVault(vault);
 
@@ -225,9 +223,7 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
     function _deployVault(
         address token,
         address initialOwner,
-        address vaultRewardController,
-        uint32 cliff,
-        uint32 unlockDuration
+        address vaultRewardController
     ) private returns (address) {
         BuildingFactoryStorageData storage $ = _getBuildingFactoryStorage();
 
@@ -237,6 +233,9 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
         string memory salt = IVaultFactory($.vaultFactory).generateSalt(initialOwner, token, $.vaultNonce);
         string memory tokenName = IERC20Metadata(token).name();
         string memory tokenSymbol = IERC20Metadata(token).symbol();
+
+        uint32 cliff = 0;
+        uint32 unlockDuration = 0;
 
         IVaultFactory.VaultDetails memory vaultDetails = IVaultFactory.VaultDetails(
             token, // address stakingToken;

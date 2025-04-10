@@ -1,34 +1,8 @@
 {
   "_format": "hh-sol-artifact-1",
   "contractName": "IUniswapV2Factory",
-  "sourceName": "contracts/erc4626/interfaces/IUniswapV2Factory.sol",
+  "sourceName": "contracts/buildings/interface/UniswapInterface.sol",
   "abi": [
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "_receiver",
-          "type": "address"
-        }
-      ],
-      "name": "FeeReceiverChanged",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "_feeSetter",
-          "type": "address"
-        }
-      ],
-      "name": "FeeSetterChanged",
-      "type": "event"
-    },
     {
       "anonymous": false,
       "inputs": [
@@ -53,43 +27,7 @@
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "pairSeqNum",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "token0Symbol",
-          "type": "string"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "token1Symbol",
-          "type": "string"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "token0Name",
-          "type": "string"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "token1Name",
-          "type": "string"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "token0Decimals",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "token1Decimals",
+          "name": "",
           "type": "uint256"
         }
       ],
@@ -149,7 +87,7 @@
           "type": "address"
         }
       ],
-      "stateMutability": "nonpayable",
+      "stateMutability": "payable",
       "type": "function"
     },
     {
@@ -203,6 +141,32 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "pairCreateFee",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "rentPayer",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "address",
@@ -224,6 +188,45 @@
         }
       ],
       "name": "setFeeToSetter",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "setPairCreateFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "setRentPayer",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "setTokenCreateFee",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
