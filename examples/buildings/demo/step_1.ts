@@ -15,6 +15,7 @@ async function getDeployedBuilding(buildingFactory: BuildingFactory, blockNumber
 }
 
 async function createBuilding(): Promise<string> {
+  const [owner] = await ethers.getSigners();
   const buildingFactory = await ethers.getContractAt(
     "BuildingFactory",
     Deployments.factories.BuildingFactory
@@ -28,10 +29,15 @@ async function createBuilding(): Promise<string> {
     treasuryNPercent: 2000n, 
     treasuryReserveAmount: ethers.parseUnits('1000', 6),
     governanceName : 'MyGovernance',
+    vaultShareTokenName: 'Token Name',
+    vaultShareTokenSymbol: 'Token Symbol',
+    vaultFeeReceiver: owner.address,
+    vaultFeeToken: ethers.Wallet.createRandom().address,
+    vaultFeePercentage: 2_00n,
     vaultCliff: 0n,
     vaultUnlockDuration: 0n
   }
-  const tx = await buildingFactory.newBuilding(buildingDetails);  
+  const tx = await buildingFactory.newBuilding(buildingDetails, { gasLimit: 6_000_000});  
   await tx.wait();
 
   const [building, token, treasury, vault, governance] = await getDeployedBuilding(buildingFactory, tx.blockNumber as number);

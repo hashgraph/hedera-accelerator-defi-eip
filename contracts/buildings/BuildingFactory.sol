@@ -108,7 +108,7 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
         tmp.initialOwner = msg.sender;
         tmp.nftId = IERC721Metadata($.nft).mint(tmp.building, details.tokenURI);
         tmp.identity = IdentityGateway($.onchainIdGateway).deployIdentityForWallet(tmp.building);
-        tmp.erc3643Token = _deployERC3643Token(tmp.building, details.tokenName, details.tokenSymbol, details.tokenDecimals);
+        tmp.erc3643Token = _deployERC3643Token(tmp.initialOwner, details.tokenName, details.tokenSymbol, details.tokenDecimals);
         tmp.treasury = _deployTreasury(details.treasuryReserveAmount, details.treasuryNPercent, tmp.initialOwner);
         
         tmp.vault = _deployVault(
@@ -151,22 +151,19 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
 
     /**
      * Create new ERC3643 token
-     * @param building address of the building
+     * @param owner address of the owner
      * @param name string name of the token
      * @param symbol string symbol of the token
      * @param decimals uint8 token decimals
      */
     function _deployERC3643Token(
-        address building,
+        address owner,
         string memory name,
         string memory symbol,
         uint8 decimals
     ) private returns (address token) {
         BuildingFactoryStorageData storage $ = _getBuildingFactoryStorage();
-
-        token = BuildingToken.createERC3643Token($.trexGateway, building, name, symbol, decimals);
-
-        OwnableUpgradeable(token).transferOwnership(msg.sender);
+        token = BuildingToken.createERC3643Token($.trexGateway, owner, name, symbol, decimals);
     }
 
     function _deployVault(

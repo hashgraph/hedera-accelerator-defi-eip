@@ -174,7 +174,7 @@ describe('Token - Information', () => {
             accounts: { tokenAgent },
           } = await loadFixture(deployFullSuiteFixture);
           await token.connect(tokenAgent).pause();
-          await expect(token.connect(tokenAgent).pause()).to.be.revertedWith('Pausable: paused');
+          await expect(token.connect(tokenAgent).pause()).to.be.rejectedWith('EnforcedPause()');
         });
       });
     });
@@ -211,7 +211,7 @@ describe('Token - Information', () => {
             suite: { token },
             accounts: { tokenAgent },
           } = await loadFixture(deployFullSuiteFixture);
-          await expect(token.connect(tokenAgent).unpause()).to.be.revertedWith('Pausable: not paused');
+          await expect(token.connect(tokenAgent).unpause()).to.be.rejectedWith('ExpectedPause()');
         });
       });
     });

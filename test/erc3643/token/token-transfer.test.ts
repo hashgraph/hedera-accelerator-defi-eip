@@ -60,7 +60,7 @@ describe('Token - Transfers', () => {
 
         await token.connect(tokenAgent).pause();
 
-        await expect(token.connect(aliceWallet).transfer(bobWallet.address, 100)).to.be.revertedWith('Pausable: paused');
+        await expect(token.connect(aliceWallet).transfer(bobWallet.address, 100)).to.be.rejectedWith('EnforcedPause()');
       });
     });
 
@@ -179,7 +179,7 @@ describe('Token - Transfers', () => {
 
         await token.connect(tokenAgent).pause();
 
-        await expect(token.connect(aliceWallet).transferFrom(aliceWallet.address, bobWallet.address, 100)).to.be.revertedWith('Pausable: paused');
+        await expect(token.connect(aliceWallet).transferFrom(aliceWallet.address, bobWallet.address, 100)).to.be.rejectedWith('EnforcedPause()');
       });
     });
 
