@@ -8,7 +8,6 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 struct TokenDetails {
     address initialOwner;
     address trexGateway; 
-    address buildingAddress; 
     string name;
     string symbol;
     uint8 decimals;
