@@ -28,7 +28,7 @@ export async function deployFullSuiteFixture() {
   const identityRegistryStorageImplementation = await ethers.deployContract('IdentityRegistryStorage', deployer);
   const identityRegistryImplementation = await ethers.deployContract('IdentityRegistry', deployer);
   const modularComplianceImplementation = await ethers.deployContract('ModularCompliance', deployer);
-  const tokenImplementation = await ethers.deployContract('Token', deployer);
+  const tokenImplementation = await ethers.deployContract('TokenVotes', deployer);
   // const identityImplementation = await new ethers.ContractFactory(
   //   OnchainID.contracts.Identity.abi,
   //   OnchainID.contracts.Identity.bytecode,

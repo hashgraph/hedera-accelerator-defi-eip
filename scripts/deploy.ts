@@ -27,7 +27,8 @@ async function deployERC3643(contracts: Record<string, any>): Promise<Record<str
   const identityRegistryStorageImplementation = await ethers.deployContract('IdentityRegistryStorage', deployer);
   const identityRegistryImplementation = await ethers.deployContract('IdentityRegistry', deployer);
   const modularComplianceImplementation = await ethers.deployContract('ModularCompliance', deployer);
-  const tokenImplementation = await ethers.deployContract('Token', deployer);
+  const tokenImplementation = await ethers.deployContract('TokenVotes', deployer);
+  tokenImplementation.waitForDeployment();
   const identityImplementation = await ethers.deployContract('Identity', [deployer.address, true], deployer);
   const identityImplementationAuthority = await ethers.deployContract('ImplementationAuthority', [await identityImplementation.getAddress()], deployer);
   const identityFactory = await ethers.deployContract('IdFactory', [await identityImplementationAuthority.getAddress()], deployer);
@@ -418,10 +419,6 @@ async function createBuildingFactory(contracts: Record<string, any>): Promise<Re
   await governanceBeacon.waitForDeployment();
   const governanceBeaconAddress = await governanceBeacon.getAddress();
 
-  // deploy new ERC20 to be used as USDC for demo/phase1 porpose
-  const usdcMock = await ethers.deployContract('ERC20Mock', ["USDC", "USDC", 6]);
-  const usdcMockAddress = await usdcMock.getAddress();
-
   const buildingFactory = await upgrades.deployBeaconProxy(
     buildingFactoryBeaconAddress,
     buildingFactoryFactory,
@@ -431,9 +428,8 @@ async function createBuildingFactory(contracts: Record<string, any>): Promise<Re
       uniswapFactoryAddress,
       identityGatewayAddress,
       trexGatewayAddress,
-      usdcMockAddress,
+      usdcAddress,
       buildingBeaconAddress,
-      contracts.vault.VaultFactory,
       treasuryBeaconAddress,
       governanceBeaconAddress
     ],
