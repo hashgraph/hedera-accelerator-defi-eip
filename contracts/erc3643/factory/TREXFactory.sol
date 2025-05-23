@@ -61,22 +61,22 @@
  */
 pragma solidity 0.8.24;
 
-import "../roles/AgentRole.sol";
-import "../token/IToken.sol";
-import "../registry/interface/IClaimTopicsRegistry.sol";
-import "../registry/interface/IIdentityRegistry.sol";
-import "../compliance/modular/IModularCompliance.sol";
-import "../registry/interface/ITrustedIssuersRegistry.sol";
-import "../registry/interface/IIdentityRegistryStorage.sol";
-import "../proxy/authority/ITREXImplementationAuthority.sol";
-import "../proxy/TokenProxy.sol";
-import "../proxy/ClaimTopicsRegistryProxy.sol";
-import "../proxy/IdentityRegistryProxy.sol";
-import "../proxy/IdentityRegistryStorageProxy.sol";
-import "../proxy/TrustedIssuersRegistryProxy.sol";
-import "../proxy/ModularComplianceProxy.sol";
-import "./ITREXFactory.sol";
-import "../../onchainid/factory/IIdFactory.sol";
+import {AgentRole, Ownable} from "../roles/AgentRole.sol";
+import {IToken, IClaimIssuer} from "../token/IToken.sol";
+import {IClaimTopicsRegistry} from "../registry/interface/IClaimTopicsRegistry.sol";
+import {IIdentityRegistry} from "../registry/interface/IIdentityRegistry.sol";
+import {IModularCompliance} from "../compliance/modular/IModularCompliance.sol";
+import {ITrustedIssuersRegistry} from "../registry/interface/ITrustedIssuersRegistry.sol";
+import {IIdentityRegistryStorage} from "../registry/interface/IIdentityRegistryStorage.sol";
+import {ITREXImplementationAuthority} from "../proxy/authority/ITREXImplementationAuthority.sol";
+import {TokenProxy} from "../proxy/TokenProxy.sol";
+import {ClaimTopicsRegistryProxy} from "../proxy/ClaimTopicsRegistryProxy.sol";
+import {IdentityRegistryProxy} from "../proxy/IdentityRegistryProxy.sol";
+import {IdentityRegistryStorageProxy} from "../proxy/IdentityRegistryStorageProxy.sol";
+import {TrustedIssuersRegistryProxy} from "../proxy/TrustedIssuersRegistryProxy.sol";
+import {ModularComplianceProxy} from "../proxy/ModularComplianceProxy.sol";
+import {ITREXFactory} from "./ITREXFactory.sol";
+import {IIdFactory} from "../../onchainid/factory/IIdFactory.sol";
 
 
 contract TREXFactory is ITREXFactory, Ownable {
