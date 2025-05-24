@@ -8,7 +8,7 @@
     "ModularCompliance": "0xF5564619EcF4100F204a5040140E13b727C4f42f",
     "Identity": "0x3e56b1C2fFbE347b6727884B328805Ef7f914e8a",
     "ImplementationAuthority": "0x0765FdfDcf78d29aEf10E77b55f417182d458E73",
-    "ERC721Metadata": "0xdFf89593D76977b39730d7B9b02f68CF6326d664"
+    "ERC721Metadata": "0x212a586E75318eB4c90Db59885b0400F1987d56B"
   },
   "factories": {
     "IdFactory": "0x140108F2D8731F582F25849A3f195A11fE62679E",
@@ -16,7 +16,7 @@
     "TREXFactory": "0xDae14ffe7F67bb63457f2c718Ea2c8091518B711",
     "TREXGateway": "0x00E73eA36A10252274e070A0B19d3f04Db423A56",
     "IdentityGateway": "0xA18D6fbcD34c1cb9E09Df31ceb9d2fAEB64E925C",
-    "BuildingFactory": "0x183bdBBe99C18AC6eE87BF42e9c460Ff7618fAC1"
+    "BuildingFactory": "0xDa3E62a174b2F22e27300bc37E8CD0273A4D26FD"
   },
   "compliance": {
     "RequiresNFTModule": "0xA318d349488531882b4fCa6b412A8766F7421044",
@@ -28,22 +28,22 @@
     "TransferLimitOneHundredModule": "0xF29a8A633018984A19315D1080975FA793118076"
   },
   "vault": {
-    "VaultFactory": "0x7548D33ae2C29171Bd6300C5EF6209246d2c106b"
+    "VaultFactory": "0xA4Fadff4d8778710A8a0Ad25eE7436dcB6972DF6"
   },
   "slice": {
-    "SliceFactory": "0x26589497484cb8f7613753Cd68B5De75a9510Bd5"
+    "SliceFactory": "0x03eBAc2cc657FB773F501B925914521d8e01EaD9"
   },
   "autoCompounder": {
-    "AutoCompounderFactory": "0x32e0271aa0B9cAA54F51379C3c04e45c3D76b9C9"
+    "AutoCompounderFactory": "0xaA94F61bD5671EE183F32c27fd8D9089d430afE5"
   },
   "asyncVault": {
-    "AsyncVaultFactory": "0x24509Bd746Ed717d7f4C2eEB7878bDDd61e6aEE6"
+    "AsyncVaultFactory": "0xebcb425b4acDbA6f99da1bd95d9fcd163A8E058A"
   },
   "libraries": {
-    "BuildingTokenLib": "0xB391E70A15F6EE90A49d2e74E81d0072A1d710Dd",
-    "BuildingGovernanceLib": "0x0A74Be7496f096d63D23c35fB1851BabD0d5200C",
-    "BuildingTreasuryLib": "0x5836f54f028Cf6f9ef6E0d2F5E4da92381DEDC2f",
-    "BuildingVaultLib": "0xC45D9D6a7475fCB9a1a40436a7C1eDc1ab5C8592",
-    "BuildingAutoCompounderLib": "0x58af6ecf8987f2061fDDed49C0C5B7F9aB49389A"
+    "BuildingTokenLib": "0x47aFE1db3E9c818C6D7B2928B266a1d976D159ae",
+    "BuildingGovernanceLib": "0x60a782C7f14297Dd20e015ffa03E6C5074644085",
+    "BuildingTreasuryLib": "0xF89dDF4a1897B3bfbb939303a3f8449CA1b31a54",
+    "BuildingVaultLib": "0x69c3F8b1456731bdB410F49151e6a834E9231a11",
+    "BuildingAutoCompounderLib": "0x1167bC120C796d3ad50215490222ea93fAF62178"
   }
 }

@@ -6,6 +6,7 @@ import {ITREXFactory} from "../../erc3643/factory/ITREXFactory.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 struct TokenDetails {
+    address initialOwner;
     address trexGateway; 
     address buildingAddress; 
     string name;
@@ -15,15 +16,15 @@ struct TokenDetails {
 
 library BuildingTokenLib {
 
-    function detployERC3643Token(TokenDetails memory details) external returns (address) {
+    function detployERC3643Token(TokenDetails memory details) external returns (address token) {
         // use simple ERC20 tokens for now, this will be replaced later to ERC3643 token
-        ITREXGateway(trexGateway).deployTREXSuite(
-            buildTokenDetails(owner, name, symbol, decimals), 
+        ITREXGateway(details.trexGateway).deployTREXSuite(
+            buildTokenDetails(details.initialOwner, details.name, details.symbol, details.decimals), 
             buildTokenClaimDetails()
         );
 
-        string memory salt  = string(abi.encodePacked(Strings.toHexString(owner), name));
-        address factory = ITREXGateway(trexGateway).getFactory();
+        string memory salt  = string(abi.encodePacked(Strings.toHexString(details.initialOwner), details.name));
+        address factory = ITREXGateway(details.trexGateway).getFactory();
         
         token = ITREXFactory(factory).getToken(salt);
     }

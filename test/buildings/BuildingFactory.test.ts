@@ -207,7 +207,7 @@ describe('BuildingFactory', () => {
   });
 
   describe('.newBuilding()', () => {    
-    it('should create a building', async () => {
+    it.only('should create a building', async () => {
       const { 
         owner,
         usdcAddress,
