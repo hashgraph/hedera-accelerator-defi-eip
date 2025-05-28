@@ -28,13 +28,15 @@ library BuildingTokenLib {
         token = ITREXFactory(factory).getToken(salt);
     }
 
-    function buildTokenDetails(address owner, string memory name, string memory symbol, uint8 decimals) internal pure returns (ITREXFactory.TokenDetails memory)  {
+    function buildTokenDetails(address owner, string memory name, string memory symbol, uint8 decimals) internal view returns (ITREXFactory.TokenDetails memory)  {
         address irs = address(0);
         address onchainid = address(0);
         address[] memory irsAgents = new address[](0);
-        address[] memory tokenAgents = new address[](0);
+        address[] memory tokenAgents = new address[](1);
         address[] memory complianceModules = new address[](0);
         bytes[] memory complianceSettings = new bytes[](0);
+
+        tokenAgents[0] = msg.sender; // set sender as token agent
         
         return ITREXFactory.TokenDetails(
             owner,
