@@ -117,8 +117,8 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
         tmp.identity = IIdentityGateway($.onchainIdGateway).deployIdentityForWallet(tmp.building);
         tmp.erc3643Token = BuildingTokenLib.detployERC3643Token(
             TokenDetails(
+                tmp.initialOwner, 
                 $.trexGateway, 
-                tmp.building, 
                 details.tokenName, 
                 details.tokenSymbol, 
                 details.tokenDecimals
