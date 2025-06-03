@@ -31,12 +31,16 @@ library BuildingTokenLib {
     function buildTokenDetails(address owner, string memory name, string memory symbol, uint8 decimals) internal view returns (ITREXFactory.TokenDetails memory)  {
         address irs = address(0);
         address onchainid = address(0);
-        address[] memory irsAgents = new address[](0);
-        address[] memory tokenAgents = new address[](1);
+        address[] memory irAgents = new address[](2);
+        address[] memory tokenAgents = new address[](2);
         address[] memory complianceModules = new address[](0);
         bytes[] memory complianceSettings = new bytes[](0);
 
+        irAgents[0] = msg.sender; // set sender as IR agent
+        irAgents[1] = address(this); // set factory as IR agent
+        
         tokenAgents[0] = msg.sender; // set sender as token agent
+        tokenAgents[1] = address(this); // set factory as token agent
         
         return ITREXFactory.TokenDetails(
             owner,
@@ -45,7 +49,7 @@ library BuildingTokenLib {
             decimals,
             irs,
             onchainid, 
-            irsAgents, 
+            irAgents, 
             tokenAgents, 
             complianceModules, 
             complianceSettings 

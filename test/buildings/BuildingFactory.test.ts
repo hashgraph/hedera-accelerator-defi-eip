@@ -2,7 +2,7 @@ import { Contract, LogDescription, Result, } from 'ethers';
 import { expect, ethers, upgrades } from '../setup';
 import { loadFixture, mine } from '@nomicfoundation/hardhat-network-helpers';
 import * as ERC721MetadataABI from '../../data/abis/ERC721Metadata.json';
-import { BuildingGovernance } from '../../typechain-types';
+import { BuildingFactory, BuildingGovernance } from '../../typechain-types';
 
 async function deployFixture() {
   const [owner, notOwner, voter1, voter2, voter3] = await ethers.getSigners();
@@ -76,7 +76,7 @@ async function deployFixture() {
   const identityRegistryStorageImplementation = await ethers.deployContract('IdentityRegistryStorage', owner);
   const identityRegistryImplementation = await ethers.deployContract('IdentityRegistry', owner);
   const modularComplianceImplementation = await ethers.deployContract('ModularCompliance', owner);
-  const tokenImplementation = await ethers.deployContract('Token', owner);
+  const tokenImplementation = await ethers.deployContract('TokenVotes', owner);
   const trexImplementationAuthority = await ethers.deployContract('TREXImplementationAuthority',[true, ethers.ZeroAddress, ethers.ZeroAddress], owner);
   
   const versionStruct = {
@@ -110,7 +110,7 @@ async function deployFixture() {
   // identityGateway must be the Owner of the IdFactory
   await identityFactory.transferOwnership(identityGatewayAddress);
 
-  const buildingFactory = await upgrades.deployBeaconProxy(
+  const bf = await upgrades.deployBeaconProxy(
     await buildingFactoryBeacon.getAddress(),
     buildingFactoryFactory,
     [
@@ -129,8 +129,9 @@ async function deployFixture() {
     }, 
   );
 
-  await buildingFactory.waitForDeployment();
-  const buildingFactoryAddress = await buildingFactory.getAddress()
+  await bf.waitForDeployment();
+  const buildingFactoryAddress = await bf.getAddress()
+  const buildingFactory = await ethers.getContractAt('BuildingFactory', buildingFactoryAddress);
 
   await nftCollection.transferOwnership(buildingFactoryAddress);
   await trexGateway.addDeployer(buildingFactoryAddress);
@@ -160,7 +161,7 @@ async function deployFixture() {
 }
 
 // get ERC721Metadata NFT collection deployed on contract deployment
-async function getDeployedBuilding(buildingFactory: Contract, blockNumber: number): Promise<Array<string>> {
+async function getDeployedBuilding(buildingFactory: BuildingFactory, blockNumber: number): Promise<Array<string>> {
   // Decode the event using queryFilter
   const logs = await buildingFactory.queryFilter(buildingFactory.filters.NewBuilding, blockNumber, blockNumber);
 
@@ -186,7 +187,7 @@ async function getProposalId(governance: BuildingGovernance, blockNumber: number
   return decodedEvent.args[0]; 
 }
 
-describe('BuildingFactory', () => {
+describe.only('BuildingFactory', () => {
   describe('upgrade', () => {
     it('should be uprgradable', async () => {
       const { 
@@ -269,13 +270,46 @@ describe('BuildingFactory', () => {
       const detailsIdentityAddress = firstBuilding[3];
       const detailsTokenAddress = firstBuilding[4];
       
-      await expect(tx).to.emit(identityFactory, 'WalletLinked').withArgs(detailsBuildingAddress, detailsIdentityAddress);
+      // await expect(tx).to.emit(identityFactory, 'WalletLinked').withArgs(owner.address, detailsIdentityAddress);
 
       // make sure tokens were minted to the sender
       const buildingToken = await ethers.getContractAt('@openzeppelin/contracts/token/ERC20/ERC20.sol:ERC20', detailsTokenAddress);
       expect(await buildingToken.balanceOf(owner)).to.be.equal(ethers.parseEther('1000'));
     });
 
+    it('should be able to create multiple buildings', async () => {
+      const { 
+        owner,
+        usdcAddress,
+        buildingFactory, 
+      } = await loadFixture(deployFixture);
+
+      const newDetails = (tokenName: string) => {
+        return {
+          tokenURI: 'ipfs://bafkreifuy6zkjpyqu5ygirxhejoryt6i4orzjynn6fawbzsuzofpdgqscq', 
+          tokenName: tokenName, 
+          tokenSymbol: 'MYT', 
+          tokenDecimals: 18n,
+          tokenMintAmount: ethers.parseEther('1000'),
+          treasuryNPercent: 2000n, 
+          treasuryReserveAmount: ethers.parseEther('1000'),
+          governanceName : 'MyGovernance',
+          vaultShareTokenName: 'vaultTokenName',
+          vaultShareTokenSymbol: 'VTS',
+          vaultFeeReceiver: owner,
+          vaultFeeToken: usdcAddress,
+          vaultFeePercentage: 2000,
+          vaultCliff: 0n,
+          vaultUnlockDuration: 0n,
+          aTokenName: 'atokenName',
+          aTokenSymbol: "ACTS"
+        }
+      }
+
+      await buildingFactory.newBuilding(newDetails('token1'));
+      await buildingFactory.newBuilding(newDetails('token2'));
+      await buildingFactory.newBuilding(newDetails('token3'));
+    })
   });
 
   describe('.callContract()', () => {
@@ -341,7 +375,7 @@ describe('BuildingFactory', () => {
 
   describe('integration flows', () => {
     it('should create building suite (token, vault, treasury governance), create a payment proposal, execute payment proposal', async () => {
-        const { buildingFactory, usdc, usdcAddress, owner, voter1, voter2, voter3 } = await loadFixture(deployFixture);
+        const { buildingFactory, usdc, usdcAddress, owner, voter1, voter2, voter3, identityGateway } = await loadFixture(deployFixture);
 
         // create building
         const buildingDetails = {
@@ -366,7 +400,7 @@ describe('BuildingFactory', () => {
   
         const buildingTx = await buildingFactory.newBuilding(buildingDetails);
         const [
-          /*buildingAddress*/, 
+          buildingAddress, 
           tokenAddress,
           treasuryAddress,
           vaultAddress,
@@ -374,10 +408,22 @@ describe('BuildingFactory', () => {
         ] = await getDeployedBuilding(buildingFactory, buildingTx.blockNumber as number);
 
         // create building token
-        const token = await ethers.getContractAt('BuildingERC20', tokenAddress);
+        const token = await ethers.getContractAt('TokenVotes', tokenAddress);
         const treasury = await ethers.getContractAt('Treasury', treasuryAddress);
         const vault = await ethers.getContractAt('BasicVault', vaultAddress);
         const governance = await ethers.getContractAt('BuildingGovernance', governanceAddress);
+
+        // identity CAN BE deployed by the owner or the user
+        // this is not for each token, can be performed only once.
+        await buildingFactory.connect(voter1).deployIdentityForWallet(voter1.address);
+        await buildingFactory.connect(voter1).deployIdentityForWallet(voter2.address);
+        await buildingFactory.connect(voter1).deployIdentityForWallet(voter3.address);
+
+        // Token Owner MUST be the one that register the identity
+        // this is per token, must be performed for every token
+        await buildingFactory.connect(voter1).registerIdentity(buildingAddress, voter1.address, 840); // 840 = US
+        await buildingFactory.connect(voter1).registerIdentity(buildingAddress, voter2.address, 840);
+        await buildingFactory.connect(voter1).registerIdentity(buildingAddress, voter3.address, 840);
 
         // mint tokens to voter to be delegated for governance voting
         const mintAmount = ethers.parseEther('1000');

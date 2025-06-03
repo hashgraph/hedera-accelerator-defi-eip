@@ -50,6 +50,7 @@ contract TokenVotes is
 
         __ERC20_init(_tokenName, _tokenSymbol);
         __ERC20Votes_init();
+        __ERC20Pausable_init();
         __Ownable_init(msg.sender);
 
         _name = _tokenName;
