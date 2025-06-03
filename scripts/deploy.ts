@@ -26,7 +26,8 @@ async function deployERC3643(contracts: Record<string, any>): Promise<Record<str
   const identityRegistryStorageImplementation = await ethers.deployContract('IdentityRegistryStorage', deployer);
   const identityRegistryImplementation = await ethers.deployContract('IdentityRegistry', deployer);
   const modularComplianceImplementation = await ethers.deployContract('ModularCompliance', deployer);
-  const tokenImplementation = await ethers.deployContract('Token', deployer);
+  const tokenImplementation = await ethers.deployContract('TokenVotes', deployer);
+  tokenImplementation.waitForDeployment();
   const identityImplementation = await ethers.deployContract('Identity', [deployer.address, true], deployer);
   const identityImplementationAuthority = await ethers.deployContract('ImplementationAuthority', [await identityImplementation.getAddress()], deployer);
   const identityFactory = await ethers.deployContract('IdFactory', [await identityImplementationAuthority.getAddress()], deployer);

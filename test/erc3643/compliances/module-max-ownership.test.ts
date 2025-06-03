@@ -374,13 +374,13 @@ describe('Compliance Module: MaxOwnership', () => {
           const receiverIdentity = await context.suite.identityRegistry.identity(context.accounts.aliceWallet.address);
 
           const decimals = await context.suite.token.decimals();
-          const twenty = 20n * 10n ** decimals;
-          const oneHundred = 100n * 10n ** decimals;
+          const twenty = 20n * 1n ** decimals;
+          const oneHundred = 100n * 1n ** decimals;
 
           // mint one thousand tokens to create total supply
           await context.suite.token
             .connect(context.accounts.tokenAgent)
-            .mint(context.accounts.aliceWallet, 1000n * 10n ** decimals);
+            .mint(context.accounts.aliceWallet, 1000n * 1n ** decimals);
 
           await context.suite.compliance.callModuleFunction(
             new ethers.Interface(['function setMaxPercentage(uint16 _max)']).encodeFunctionData('setMaxPercentage', [twenty]),
@@ -415,13 +415,13 @@ describe('Compliance Module: MaxOwnership', () => {
         const senderIdentity = await context.suite.identityRegistry.identity(context.accounts.aliceWallet.address);
 
         const decimals = await context.suite.token.decimals();
-        const twenty = 20n * 10n ** decimals;
-        const oneHundred = 100n * 10n ** decimals;
+        const twenty = 20n * 1n ** decimals;
+        const oneHundred = 100n * 1n ** decimals;
 
         // mint one thousand tokens to create total supply
         await context.suite.token
           .connect(context.accounts.tokenAgent)
-          .mint(context.accounts.aliceWallet, 1000n * 10n ** decimals);
+          .mint(context.accounts.aliceWallet, 1000n * 1n ** decimals);
 
         await context.suite.compliance.callModuleFunction(
           new ethers.Interface(['function setMaxPercentage(uint16 _max)']).encodeFunctionData('setMaxPercentage', [twenty]),
@@ -451,7 +451,7 @@ describe('Compliance Module: MaxOwnership', () => {
         const from = context.accounts.aliceWallet.address;
 
         const decimals = await context.suite.token.decimals();
-        const oneHundred = 100n * 10n ** decimals;        
+        const oneHundred = 100n * 1n ** decimals;        
 
         expect(await context.suite.complianceModule.moduleCheck(from, to, oneHundred, await context.suite.compliance.getAddress())).to.be.equal(true);
       });    
