@@ -162,7 +162,7 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
 
         tmp.autoCompounder = BuildingAutoCompounderLib.deployAutoCompounder(
             AutoCompounderDetails (
-                $.uniswapFactory,
+                $.uniswapRouter,
                 tmp.vault,
                 $.usdc,
                 details.aTokenName,

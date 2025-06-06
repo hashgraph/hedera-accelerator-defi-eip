@@ -177,7 +177,7 @@ contract AutoCompounder is IAutoCompounder, ERC20, Ownable, ERC165 {
                 0, // Accept any amount
                 _path,
                 address(this),
-                block.timestamp
+                block.timestamp + 300 // plus 5 minutes
             );
 
             // Reinvest swapped underlying

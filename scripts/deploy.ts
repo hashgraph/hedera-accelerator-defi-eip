@@ -149,7 +149,7 @@ async function deployAsyncVaultFactory(contracts: Record<string, any>): Promise<
 
   const AsyncVaultFactory = await ethers.getContractFactory("AsyncVaultFactory");
   const asyncVaultFactory = await AsyncVaultFactory.deploy(
-    { from: deployer.address, gasLimit: 1000000 }
+    { from: deployer.address, gasLimit: 15000000 }
   );
   await asyncVaultFactory.waitForDeployment();
 
@@ -231,11 +231,11 @@ async function deployBuildingFactory(contracts: Record<string, any>): Promise<Re
   const trexGateway = await ethers.getContractAt('TREXGateway', trexGatewayAddress);
 
   // Beacon Upgradable Pattern for Treasury
-  const treasuryImplementation = await ethers.deployContract('Treasury', { gasLimit: 1000000 });
+  const treasuryImplementation = await ethers.deployContract('Treasury', { gasLimit: 15000000 });
   await treasuryImplementation.waitForDeployment();
   const treasuryImplementationAddress = await treasuryImplementation.getAddress();
   const treasuryBeaconFactory = await ethers.getContractFactory('TreasuryBeacon');
-  const treasuryBeacon = await treasuryBeaconFactory.deploy(treasuryImplementationAddress, { gasLimit: 1000000 })
+  const treasuryBeacon = await treasuryBeaconFactory.deploy(treasuryImplementationAddress, { gasLimit: 15000000 })
   await treasuryBeacon.waitForDeployment();
   const treasuryBeaconAddress = await treasuryBeacon.getAddress();
 
@@ -244,7 +244,7 @@ async function deployBuildingFactory(contracts: Record<string, any>): Promise<Re
   await governanceImplementation.waitForDeployment();
   const governanceImplementationAddress = await governanceImplementation.getAddress();
   const governanceBeaconFactory = await ethers.getContractFactory('BuildingGovernanceBeacon');
-  const governanceBeacon = await governanceBeaconFactory.deploy(governanceImplementationAddress, { gasLimit: 1000000 })
+  const governanceBeacon = await governanceBeaconFactory.deploy(governanceImplementationAddress, { gasLimit: 15000000 })
   await governanceBeacon.waitForDeployment();
   const governanceBeaconAddress = await governanceBeacon.getAddress();
 
