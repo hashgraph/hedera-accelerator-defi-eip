@@ -73,4 +73,9 @@ abstract contract BuildingLiquidityPool is Initializable{
             block.timestamp + 300 // A timestamp (in seconds) after which the transaction will revert if it hasn't been executed.  prevents front-running 
         );
     }
+
+    function createLiquidityPair(address tokenA, address tokenB) public returns (address pair) {
+        BuildingLiquidityPoolStorage storage $ = _getBuildingLiquidityPoolStorage();
+        pair = IUniswapV2Factory($.uniswapFactory).createPair(tokenA, tokenB);
+    }
 }

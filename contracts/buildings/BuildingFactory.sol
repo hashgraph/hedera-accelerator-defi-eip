@@ -101,7 +101,7 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
         address vault;
         address governance;
         address autoCompounder;
-        address uniswapRouter;
+        address liquidityPair;
     }
 
     /**
@@ -113,7 +113,6 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
         
         Tmp memory tmp; // temp var to avoid stack too deep errors
         tmp.initialOwner = msg.sender; // initial owner is sender
-        tmp.uniswapRouter = $.uniswapRouter;
 
         tmp.building = address(new BeaconProxy(
             $.buildingBeacon,
@@ -130,6 +129,9 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
                 details.tokenDecimals
             )
         );
+
+        // creates the liquidity pair 
+        tmp.liquidityPair = Building(tmp.building).createLiquidityPair(tmp.erc3643Token, $.usdc);
         
         // deploy treasury
         tmp.treasury = BuildingTreasuryLib.deployTreasury(
@@ -284,15 +286,18 @@ contract BuildingFactory is BuildingFactoryStorage, Initializable {
      * erc3643 tokens might be sent to them, so they need to have identities registered
      * @param tmp temporary state variable
      */
-    function getControllerAddresses(Tmp memory tmp) private pure returns (address[] memory controllers) {
-        uint8 NUM_CONTROLLERS = 5;
+    function getControllerAddresses(Tmp memory tmp) private view returns (address[] memory controllers) {
+        BuildingFactoryStorageData storage $ = _getBuildingFactoryStorage();
+
+        uint8 NUM_CONTROLLERS = 6;
         controllers = new address[](NUM_CONTROLLERS);
 
         controllers[0] = tmp.initialOwner;
         controllers[1] = tmp.vault;
         controllers[2] = tmp.autoCompounder;
         controllers[3] = tmp.building;
-        controllers[4] = tmp.uniswapRouter;
+        controllers[4] = $.uniswapRouter;
+        controllers[5] = tmp.liquidityPair;
         // controllers[5] = tmp.oneSidedExchange;
     }
 }

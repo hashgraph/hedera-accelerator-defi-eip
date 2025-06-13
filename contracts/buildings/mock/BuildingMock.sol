@@ -26,7 +26,7 @@ contract BuildingMock is Building {
         uint256 tokenAAmount, 
         address tokenB, 
         uint256 tokenBAmount
-    ) public payable  override onlyOwner returns (uint, uint, uint,address) {        
+    ) public  override onlyOwner returns (uint, uint, uint,address) {        
         (amountA, amountB, liquidity, pair)=
         super.addLiquidity(
             tokenA, 

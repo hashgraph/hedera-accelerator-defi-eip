@@ -44,7 +44,7 @@ contract Building is BuildingBase, BuildingLiquidityPool, BuildingAudit {
         uint256 tokenAAmount, 
         address tokenB, 
         uint256 tokenBAmount
-    ) public virtual payable returns (uint amountA, uint amountB, uint liquidity, address pair) {        
+    ) public virtual returns (uint amountA, uint amountB, uint liquidity, address pair) {        
         IERC20(tokenA).transferFrom(_msgSender(), address(this), tokenAAmount);
         IERC20(tokenB).transferFrom(_msgSender(), address(this), tokenBAmount);
         (amountA, amountB, liquidity, pair) =
